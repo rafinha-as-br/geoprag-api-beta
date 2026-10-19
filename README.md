@@ -31,6 +31,8 @@ cp .env.example .env
 
 Sem `.env`, o Compose usa valores padrão de desenvolvimento local (o banco não é publicado fora da rede do Compose). **Esses padrões servem só para o ambiente local**: em qualquer ambiente compartilhado, defina `DB_PASSWORD`, `JWT_SECRET` e `CORS_ALLOWED_ORIGINS` no `.env`.
 
+Para usar a API pelo celular Android (cabo USB e `adb reverse`) ou pelo portal Web, veja o [guia do ambiente local](docs/ambiente-local.md).
+
 ## Configuração
 
 Toda a configuração vem **somente de variáveis de ambiente** (veja `.env.example`):
