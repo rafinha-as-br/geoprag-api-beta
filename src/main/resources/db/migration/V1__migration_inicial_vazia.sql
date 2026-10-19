@@ -1,0 +1,2 @@
+-- Migration inicial vazia: apenas registra o baseline do Flyway.
+-- O schema do domínio (tenant, usuário, pontos etc.) chega nas migrations seguintes.

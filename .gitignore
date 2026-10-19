@@ -1,0 +1,27 @@
+# Build
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+# Segredos e configuração local (o repositório é público)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.jks
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+
+# SO
+.DS_Store
+Thumbs.db
+
+# Locais do Claude (não versionados)
+.claude/design-packages/
