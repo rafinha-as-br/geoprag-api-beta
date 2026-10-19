@@ -44,6 +44,33 @@ Toda a configuração vem **somente de variáveis de ambiente** (veja `.env.exam
 
 > O repositório é público: nunca versione `.env`, chaves ou credenciais reais.
 
+## Saúde, documentação e erros
+
+| Recurso | Endereço |
+|---|---|
+| Saúde (escolha: Spring Boot Actuator, só `health` exposto) | `GET /actuator/health` |
+| Swagger UI | `/swagger-ui.html` |
+| OpenAPI (JSON) | `/v3/api-docs` (lista também o endpoint de saúde) |
+
+Os erros seguem a RFC 7807 (`application/problem+json`), com `code` estável e `detail` em pt-BR (locale fixo `pt_BR`):
+
+```json
+{
+  "type": "about:blank",
+  "title": "Dados inválidos",
+  "status": 400,
+  "detail": "Há campos inválidos. Corrija os dados informados e tente novamente.",
+  "code": "VALIDACAO_INVALIDA",
+  "errors": [{ "field": "nome", "message": "não deve estar em branco" }]
+}
+```
+
+Códigos atuais (`br.com.geoprag.api.common.error.ErrorCode`; não renomear um existente): `REQUISICAO_INVALIDA`, `VALIDACAO_INVALIDA`, `RECURSO_NAO_ENCONTRADO`, `METODO_NAO_PERMITIDO`, `FORMATO_NAO_SUPORTADO` e `ERRO_INTERNO`. Erros inesperados nunca expõem detalhes internos. `errors[]` só aparece em `VALIDACAO_INVALIDA`.
+
+**CORS:** `CORS_ALLOWED_ORIGINS` define as origens permitidas (por exemplo, a do portal Web local: `http://localhost:3000`). Vazio = nenhuma origem externa. O preflight `OPTIONS` é tratado, e não há cookies (autenticação por `Authorization: Bearer`).
+
+> O Swagger e o OpenAPI ficam habilitados por padrão. Para desligá-los em produção, use `springdoc.api-docs.enabled=false` e `springdoc.swagger-ui.enabled=false`.
+
 ## Build e testes
 
 ```bash
