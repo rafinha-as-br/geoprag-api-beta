@@ -18,6 +18,8 @@ spring:
       ddl-auto: validate
   flyway:
     enabled: true
+    # Só o esquema. O seed fictício (db/seed) é acrescentado apenas pelos perfis `local` e `test`.
+    locations: classpath:db/migration
 
 # Endpoint de saúde: apenas /actuator/health é exposto.
 management:

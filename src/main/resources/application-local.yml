@@ -1,0 +1,6 @@
+# Perfil `local`: ambiente de desenvolvimento na máquina de quem desenvolve (o docker-compose.yml o ativa).
+# Além das migrations do esquema, carrega o SEED FICTÍCIO (db/seed), cuja senha vale só para uso local.
+# Nenhum outro perfil (nem a configuração padrão) carrega o seed.
+spring:
+  flyway:
+    locations: classpath:db/migration,classpath:db/seed

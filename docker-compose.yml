@@ -21,6 +21,8 @@ services:
     ports:
       - "8080:8080"
     environment:
+      # `local` carrega o seed fictício (usuários de teste). Para subir sem seed: SPRING_PROFILES_ACTIVE=default
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-local}
       DB_URL: jdbc:postgresql://db:5432/${DB_NAME:-geoprag}
       DB_USER: ${DB_USER:-geoprag}
       DB_PASSWORD: ${DB_PASSWORD:-geoprag}
