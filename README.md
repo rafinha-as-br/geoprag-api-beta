@@ -66,3 +66,9 @@ dto/        (separado das entidades)
 ```
 
 Controllers falam apenas com services; services com repositories; DTOs nunca expõem entidades JPA.
+
+## Integração contínua
+
+O workflow `.github/workflows/ci.yml` (job `quality-gates`) roda `./mvnw -B verify` com Java 21 (Temurin) em todo pull request para `develop`, `main`, `release/current` e `epic/**`, e em pushes na `develop` e na `release/current` — o mesmo desenho dos demais repositórios do GeoPrag.
+
+Fluxo de branches: `develop` é a base; cada épico tem a sua `epic/<CHAVE>-<nome>`, e as issues saem dela.
