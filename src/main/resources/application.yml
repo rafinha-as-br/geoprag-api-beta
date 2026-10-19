@@ -8,6 +8,10 @@ spring:
     url: ${DB_URL}
     username: ${DB_USER}
     password: ${DB_PASSWORD}
+  web:
+    # Mensagens de validação e erros ao usuário em pt-BR, independentemente do Accept-Language.
+    locale: pt_BR
+    locale-resolver: fixed
   jpa:
     open-in-view: false
     hibernate:
@@ -15,8 +19,19 @@ spring:
   flyway:
     enabled: true
 
-# Configurações lidas por features posteriores (autenticação e CORS).
+# Endpoint de saúde: apenas /actuator/health é exposto.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+# Documentação navegável: Swagger UI em /swagger-ui.html e OpenAPI em /v3/api-docs.
+springdoc:
+  show-actuator: true
+
 # Todas vêm somente de variáveis de ambiente; ver .env.example.
+# jwt é lido pelas features de autenticação (épicos seguintes); cors é lido por common.cors.
 app:
   jwt:
     secret: ${JWT_SECRET:}
