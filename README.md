@@ -40,6 +40,7 @@ Toda a configuração vem **somente de variáveis de ambiente** (veja `.env.exam
 | `DB_NAME`, `DB_USER`, `DB_PASSWORD` | Banco de dados (no Compose, `DB_URL` é montada a partir delas) |
 | `DB_URL` | URL JDBC. Ao rodar a API fora do Compose, `DB_URL`, `DB_USER` e `DB_PASSWORD` são obrigatórias |
 | `JWT_SECRET`, `JWT_ACCESS_TOKEN_MINUTES` | Autenticação JWT (HS256). `JWT_SECRET` é obrigatório (32+ caracteres, senão a API não sobe); o access token vale 15 minutos por padrão |
+| `SYNC_MAX_ITENS_POR_LOTE` | Máximo de itens em `POST /sync/aplicacoes` (padrão 500; acima disso a API responde `413`) |
 | `CORS_ALLOWED_ORIGINS` | Origens permitidas (lista separada por vírgula) |
 | `SPRING_PROFILES_ACTIVE` | Perfil do Spring. `local` (padrão do Compose) carrega o seed fictício; sem ele o seed não existe |
 
@@ -61,7 +62,7 @@ Toda a configuração vem **somente de variáveis de ambiente** (veja `.env.exam
 
 ## Registro de aplicação (serviço)
 
-O registro de um item (subponto) enviado pelo app é feito pelo `RegistroAplicacaoService` (os endpoints `POST /sync/aplicacoes` e `GET /sync/pull` são das GEOPRAG-201 e 200). Esquema em `V6`: `aplicacao` (agrupa os subpontos, `EM_ANDAMENTO` ou `CONCLUIDA`) e `subponto` (um por item), ambos com `tenant_id` e chaves compostas.
+O registro de um item (subponto) enviado pelo app é feito pelo `RegistroAplicacaoService`; o endpoint `POST /api/v1/sync/aplicacoes` (abaixo) o chama por item, e `GET /sync/pull` é da GEOPRAG-200. Esquema em `V6`: `aplicacao` (agrupa os subpontos, `EM_ANDAMENTO` ou `CONCLUIDA`) e `subponto` (um por item), ambos com `tenant_id` e chaves compostas.
 
 - **Idempotente:** o `id` do subponto é o UUID gerado no app e é a chave primária; reenviar o mesmo `id` devolve `DUPLICADO` e não altera nada.
 - **Append-only:** subpontos nunca são editados nem apagados (sem setters, colunas não atualizáveis e repositório sem `delete`).
@@ -69,6 +70,16 @@ O registro de um item (subponto) enviado pelo app é feito pelo `RegistroAplicac
 - **Rejeita só o inválido de fato** (`DADOS_INVALIDOS`, `PONTO_INEXISTENTE`, `PRODUTO_INEXISTENTE`), sem gravar nada. Dados inconsistentes incluem data agendada de outro ponto e `aplicacaoId` reutilizado com outro ponto, data, produto ou aplicador.
 - **Conflito é aceito e marcado** com um motivo (`PONTO_REATRIBUIDO`, `PONTO_DESATIVADO`, `PONTO_INATIVO`, `DATA_JA_ATENDIDA`, `DATA_CANCELADA`; vale o primeiro da lista quando há mais de um). O resultado ao app não revela o conflito; a marca fica consultável por ponto (`SubpontoRepository`), para o gestor.
 - **Conclusão:** ao atingir a quantidade de subpontos do ponto, a aplicação é concluída e a data agendada recebe baixa (se nenhuma outra aplicação disputa a mesma data).
+- **`aplicacaoId` já usado em outro tenant** é rejeitado como `DADOS_INVALIDOS` (a chave primária da aplicação é global; a checagem não revela nada do outro tenant).
+
+### Envio em lote: `POST /api/v1/sync/aplicacoes`
+
+Só o perfil `APLICADOR`. O corpo é `{ "dispositivoId": "...", "itens": [ ... ] }` (cada item como no contrato v0: `id`, `aplicacaoId`, `pontoId`, `dataAgendadaId`, `produtoId`, `latitude`, `longitude`, `realizadoEm`). A resposta é `{ "recebidoEm": "...", "resultados": [ { "id", "status", "codigo?", "motivo?" } ] }`, **um resultado por item, na mesma ordem do envio**, com `status` `CRIADO`, `DUPLICADO` ou `REJEITADO`. O registro online usa o mesmo endpoint com um item.
+
+- **Cada item é uma transação própria:** um item rejeitado não derruba os demais, e reenviar o lote inteiro devolve `DUPLICADO` para o que já foi gravado. Uma falha inesperada (ex.: banco fora do ar) **não** vira resultado de item: a resposta é `500` e o que já foi gravado antes permanece; o app reenvia o lote.
+- **Envelope inválido** (`itens` ausente ou vazio, `dispositivoId` em branco, JSON ilegível) → `400`. Item nulo ou incompleto dentro de um lote válido é rejeitado como `DADOS_INVALIDOS`.
+- **Limite:** mais de `SYNC_MAX_ITENS_POR_LOTE` itens (padrão **500**) → `413` com o código `LOTE_MUITO_GRANDE`, sem gravar nada.
+- O aplicador e o tenant vêm do token; o corpo não os informa. A resposta nunca revela conflito.
 
 ## Usuários, senhas e seed
 
@@ -129,11 +140,13 @@ Códigos atuais (`br.com.geoprag.api.common.error.ErrorCode`; não renomear um e
 ./mvnw verify
 ```
 
-Os testes usam H2 em memória (modo PostgreSQL) e não precisam de banco externo. Sem Maven nem JDK local, rode pelo Docker:
+A maioria dos testes usa H2 em memória (modo PostgreSQL) e não precisa de banco externo. Os testes de **integração com PostgreSQL real** (Testcontainers, hoje o envio em lote de `/sync/aplicacoes`) precisam de **Docker em execução**; sem Docker eles são **ignorados**, e o CI roda com Docker. Sem Maven nem JDK local, rode pelo Docker:
 
 ```bash
 docker run --rm -v "$PWD":/w -w /w maven:3.9-eclipse-temurin-21 mvn -B verify
 ```
+
+Para incluir os testes com PostgreSQL ao rodar o Maven dentro de um contêiner, monte o socket do Docker (`-v /var/run/docker.sock:/var/run/docker.sock`) e, no Docker Desktop (Windows/macOS), acrescente `-e TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal -e TESTCONTAINERS_RYUK_DISABLED=true`.
 
 ## Estrutura
 

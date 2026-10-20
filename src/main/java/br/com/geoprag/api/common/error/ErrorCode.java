@@ -29,6 +29,8 @@ public enum ErrorCode {
             "Sessão ausente, inválida ou expirada. Entre novamente."),
     REFRESH_INVALIDO("Sessão expirada",
             "Sua sessão expirou. Entre novamente com seu CPF ou e-mail e senha."),
+    LOTE_MUITO_GRANDE("Lote muito grande",
+            "O lote excede o limite de itens aceito. Reenvie os registros em lotes menores."),
     ACESSO_NEGADO("Acesso negado",
             "Seu perfil não tem permissão para acessar este recurso.");
 

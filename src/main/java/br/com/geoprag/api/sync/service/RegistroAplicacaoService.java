@@ -126,6 +126,10 @@ public class RegistroAplicacaoService {
         }
 
         Aplicacao aplicacao = aplicacoes.findByTenantIdAndId(tenantId, aplicacaoId.get()).orElse(null);
+        if (aplicacao == null && aplicacoes.existsById(aplicacaoId.get())) {
+            // O UUID do app é a chave primária global: já usado em outro tenant, não pode ser criado aqui.
+            return ResultadoDoItem.rejeitado(idTexto, CodigoRejeicao.DADOS_INVALIDOS, MOTIVO_DADOS_INVALIDOS);
+        }
         if (aplicacao != null && !mesmaAplicacao(aplicacao, ponto.get(), data.get(), produto.get(), aplicadorId)) {
             return ResultadoDoItem.rejeitado(idTexto, CodigoRejeicao.DADOS_INVALIDOS, MOTIVO_DADOS_INVALIDOS);
         }
