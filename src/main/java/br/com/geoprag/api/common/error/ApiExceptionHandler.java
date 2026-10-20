@@ -10,6 +10,8 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.lang.Nullable;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
 import org.springframework.validation.ObjectError;
 import org.springframework.validation.method.ParameterErrors;
@@ -64,15 +66,46 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         return response;
     }
 
+    @ExceptionHandler(ApiException.class)
+    public ResponseEntity<ProblemDetail> handleApiException(ApiException ex) {
+        ResponseEntity.BodyBuilder resposta = ResponseEntity.status(ex.getStatus());
+        if (ex.getCode() == ErrorCode.NAO_AUTENTICADO) {
+            resposta.header(HttpHeaders.WWW_AUTHENTICATE, "Bearer");
+        }
+        ProblemDetail problem = ProblemaPadrao.de(ex.getCode(), ex.getStatus());
+        if (ex.getDetail() != null) {
+            problem.setDetail(ex.getDetail());
+        }
+        if (!ex.getErrors().isEmpty()) {
+            problem.setProperty("errors", ex.getErrors());
+        }
+        return resposta.body(problem);
+    }
+
+    /** Autorização por papel ({@code @PreAuthorize}) que falha dentro do controller. */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ProblemDetail> handleAcessoNegado(AccessDeniedException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(ProblemaPadrao.de(ErrorCode.ACESSO_NEGADO, HttpStatus.FORBIDDEN));
+    }
+
+    /** Falta de autenticação detectada dentro do controller (a barreira principal é o filtro de segurança). */
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ProblemDetail> handleNaoAutenticado(AuthenticationException ex) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .header(HttpHeaders.WWW_AUTHENTICATE, "Bearer")
+                .body(ProblemaPadrao.de(ErrorCode.NAO_AUTENTICADO, HttpStatus.UNAUTHORIZED));
+    }
+
     @ExceptionHandler(Exception.class)
     public ProblemDetail handleErroInesperado(Exception ex) {
         log.error("Erro inesperado não tratado", ex);
-        return problemOf(ErrorCode.ERRO_INTERNO, HttpStatus.INTERNAL_SERVER_ERROR);
+        return ProblemaPadrao.de(ErrorCode.ERRO_INTERNO, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
     private ResponseEntity<Object> validationResponse(Exception ex, List<CampoInvalido> errors, HttpHeaders headers,
             HttpStatusCode status, WebRequest request) {
-        ProblemDetail problem = problemOf(ErrorCode.VALIDACAO_INVALIDA, status);
+        ProblemDetail problem = ProblemaPadrao.de(ErrorCode.VALIDACAO_INVALIDA, status);
         problem.setProperty("errors", errors);
         return handleExceptionInternal(ex, problem, headers, status, request);
     }
@@ -84,12 +117,5 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
                         error instanceof FieldError fieldError ? fieldError.getField() : error.getObjectName(),
                         error.getDefaultMessage()))
                 .toList();
-    }
-
-    private static ProblemDetail problemOf(ErrorCode code, HttpStatusCode status) {
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, code.detail());
-        problem.setTitle(code.title());
-        problem.setProperty("code", code.name());
-        return problem;
     }
 }

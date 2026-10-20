@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -32,5 +33,17 @@ class ControllerDeTeste {
     @GetMapping("/erro-inesperado")
     void erroInesperado() {
         throw new IllegalStateException("detalhe interno sensível");
+    }
+
+    @GetMapping("/administracao")
+    @PreAuthorize("hasAnyRole('ADMINISTRADOR','SUB_ADMINISTRADOR')")
+    String administracao() {
+        return "ok";
+    }
+
+    @GetMapping("/aplicador")
+    @PreAuthorize("hasRole('APLICADOR')")
+    String aplicador() {
+        return "ok";
     }
 }
