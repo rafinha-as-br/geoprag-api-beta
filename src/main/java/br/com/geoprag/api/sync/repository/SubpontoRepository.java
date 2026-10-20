@@ -23,6 +23,9 @@ public interface SubpontoRepository extends Repository<Subponto, UUID> {
 
     long countByTenantIdAndAplicacaoId(String tenantId, UUID aplicacaoId);
 
+    /** Quantos subpontos já foram registrados no ponto (qualquer aplicação). */
+    long countByTenantIdAndAplicacaoPontoId(String tenantId, UUID pontoId);
+
     /** Registros de um ponto, com a marca de conflito (para o detalhe do ponto, visível ao gestor). */
     List<Subponto> findByTenantIdAndAplicacaoPontoIdOrderByRealizadoEm(String tenantId, UUID pontoId);
 

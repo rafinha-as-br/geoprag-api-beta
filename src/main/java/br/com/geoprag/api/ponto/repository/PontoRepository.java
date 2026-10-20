@@ -35,6 +35,8 @@ public interface PontoRepository extends Repository<Ponto, UUID> {
 
     List<Ponto> findByTenantIdOrderByIdentificador(String tenantId);
 
+    long countByTenantId(String tenantId);
+
     /** Pontos do tenant já com bairro e aplicador carregados (para a listagem, sem consulta extra por ponto). */
     @Query("select p from Ponto p join fetch p.bairro left join fetch p.aplicador "
             + "where p.tenant.id = :tenantId order by p.identificador")

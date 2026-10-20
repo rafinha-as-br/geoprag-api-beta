@@ -92,6 +92,21 @@ Mesmos perfis e tenant da leitura; todas devolvem o `Ponto` atualizado. **O serv
 - **Um único agendamento vigente por ponto**, garantido pelo serviço: ao reativar um ponto `INATIVA`, o agendamento anterior vira histórico (`vigente = false`) e as datas ainda pendentes dele passam a `CANCELADA`.
 - **Concorrência:** a mutação lê o ponto com `SELECT … FOR UPDATE`; duas ativações simultâneas do mesmo ponto resultam em um `200` e um `409` (testado em PostgreSQL real).
 
+### Cadastro e ciclo de vida do ponto (portal)
+
+Mesmos perfis, tenant e regras de erro (`404`, `409 OPERACAO_NAO_PERMITIDA`) das transições acima; todos devolvem o `Ponto`.
+
+| Endpoint | Efeito |
+|---|---|
+| `POST /api/v1/pontos` | Cadastra um ponto. Obrigatórios: `nome`, `bairroId`, `endereco`, `dosagemMl`, `distanciaEntreSubpontosMetros`, `quantidadeDeSubpontos`; opcionais: `numeroReferencia`, `descricaoDoTrecho`, `larguraMetros`, `profundidadeMetros`, `velocidadeMetrosPorSegundo`, `toleranciaAtrasoDias` (padrão 4) e `aplicadorId`. Nasce `ENDERECADA`, ou `DIRECIONADA` com `aplicadorId`. O `identificador` (`PA-001`, `PA-002`, …) é gerado pelo servidor. |
+| `PUT /api/v1/pontos/{id}` | Edita o cadastro: o corpo substitui (opcional omitido fica sem valor; tolerância omitida vale 4); `aplicadorId` é ignorado (o aplicador muda por `/aplicador`). `nome` e `toleranciaAtrasoDias` sempre; qualquer outro campo só enquanto o ponto **não tem agendamento vigente nem aplicação registrada**, senão `409`. |
+| `POST /api/v1/pontos/{id}/desativacao` | Qualquer estado menos `DESATIVADO`: guarda o estado em `estadoAnterior` e cancela as datas **pendentes de hoje em diante** do agendamento vigente (o histórico é preservado). |
+| `POST /api/v1/pontos/{id}/reativacao` | Só `DESATIVADO`: volta ao `estadoAnterior`. As datas canceladas na desativação não são restauradas. |
+| `POST /api/v1/pontos/{id}/cancelamento` | Só `ATIVA` → `INATIVA`: encerra o agendamento vigente (`vigente = false`) e cancela as datas pendentes de hoje em diante; execuções e datas passadas ficam como estão. |
+
+- `bairroId` ou `aplicadorId` inválidos ou de outro tenant: `400 VALIDACAO_INVALIDA` (campo indicado em `errors[]`); aplicador `DESATIVADO`: `409`. Medidas seguem `NUMERIC(8, 2)` (até 2 casas decimais); textos têm os limites do esquema.
+- A criação serializa-se por `SELECT … FOR UPDATE` na linha do tenant: o `identificador` é a quantidade de pontos do tenant + 1, e pontos nunca são excluídos.
+
 ## Produto (beta)
 
 - **Esquema** (`V4`): `produto` (`id` gerado pelo servidor, `nome`, `tenant_id`). No beta há **um único produto pré-cadastrado por tenant**, que o aplicador seleciona ao registrar uma aplicação; não há CRUD, lote, estoque nem foto. O `id` é o `produtoId` do contrato v0.
