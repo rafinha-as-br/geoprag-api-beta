@@ -1,5 +1,6 @@
 package br.com.geoprag.api.ponto.service;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
@@ -11,6 +12,7 @@ import br.com.geoprag.api.auth.domain.Usuario;
 import br.com.geoprag.api.auth.repository.TenantRepository;
 import br.com.geoprag.api.common.error.ApiException;
 import br.com.geoprag.api.common.error.ErrorCode;
+import br.com.geoprag.api.ponto.domain.AcaoDePonto;
 import br.com.geoprag.api.ponto.domain.Bairro;
 import br.com.geoprag.api.ponto.domain.Ponto;
 import br.com.geoprag.api.ponto.dto.CadastroDePontoRequest;
@@ -40,10 +42,11 @@ public class CadastroDePontoService {
     private final AgendamentoRepository agendamentos;
     private final SubpontoRepository subpontos;
     private final PontoService leitura;
+    private final AuditoriaDePontoService auditoria;
 
     public CadastroDePontoService(PontoRepository pontos, TenantRepository tenants, BairroRepository bairros,
             AplicadorDoTenant aplicadores, AgendamentoRepository agendamentos, SubpontoRepository subpontos,
-            PontoService leitura) {
+            PontoService leitura, AuditoriaDePontoService auditoria) {
         this.pontos = pontos;
         this.tenants = tenants;
         this.bairros = bairros;
@@ -51,10 +54,11 @@ public class CadastroDePontoService {
         this.agendamentos = agendamentos;
         this.subpontos = subpontos;
         this.leitura = leitura;
+        this.auditoria = auditoria;
     }
 
     @Transactional
-    public PontoResponse criar(String tenantId, CadastroDePontoRequest corpo) {
+    public PontoResponse criar(String tenantId, UUID atorId, CadastroDePontoRequest corpo) {
         Tenant tenant = tenants.findByIdParaAtualizar(tenantId)
                 .orElseThrow(() -> new ApiException(ErrorCode.NAO_AUTENTICADO, HttpStatus.UNAUTHORIZED));
         Bairro bairro = bairroDoTenant(tenantId, corpo.bairroId());
@@ -67,18 +71,25 @@ public class CadastroDePontoService {
                 aplicador);
         ponto.aplicarCadastro(cadastro);
         pontos.save(ponto);
+        auditoria.registrar(tenantId, ponto, atorId, AcaoDePonto.CRIACAO, null, null, "identificador=" + identificador);
         return leitura.detalhar(tenantId, ponto);
     }
 
     @Transactional
-    public PontoResponse editar(String tenantId, String pontoId, CadastroDePontoRequest corpo) {
+    public PontoResponse editar(String tenantId, UUID atorId, String pontoId, CadastroDePontoRequest corpo) {
         UUID id = PontoService.uuid(pontoId).orElseThrow(PontoService::naoEncontrado);
         Ponto ponto = pontos.findByTenantIdAndIdParaAtualizar(tenantId, id).orElseThrow(PontoService::naoEncontrado);
         Ponto.Cadastro novo = cadastro(corpo, bairroDoTenant(tenantId, corpo.bairroId()));
         if (ponto.alteraCadastroCompleto(novo) && temAgendamentoVigenteOuExecucao(tenantId, ponto)) {
             throw ApiException.operacaoNaoPermitida(MOTIVO_EDICAO_BLOQUEADA);
         }
+        List<String> diferencas = ponto.diferencas(novo);
         ponto.aplicarCadastro(novo);
+        if (!diferencas.isEmpty()) {
+            auditoria.registrar(tenantId, ponto, atorId, AcaoDePonto.EDICAO, ponto.getEstado(),
+                    ponto.getAplicador() == null ? null : ponto.getAplicador().getId(),
+                    String.join("; ", diferencas));
+        }
         return leitura.detalhar(tenantId, ponto);
     }
 

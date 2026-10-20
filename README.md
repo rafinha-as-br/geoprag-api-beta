@@ -107,6 +107,15 @@ Mesmos perfis, tenant e regras de erro (`404`, `409 OPERACAO_NAO_PERMITIDA`) das
 - `bairroId` ou `aplicadorId` inválidos ou de outro tenant: `400 VALIDACAO_INVALIDA` (campo indicado em `errors[]`); aplicador `DESATIVADO`: `409`. Medidas seguem `NUMERIC(8, 2)` (até 2 casas decimais); textos têm os limites do esquema.
 - A criação serializa-se por `SELECT … FOR UPDATE` na linha do tenant: o `identificador` é a quantidade de pontos do tenant + 1, e pontos nunca são excluídos.
 
+### Auditoria dos pontos
+
+Toda mudança **efetiva** de um ponto feita pelo administrador gera um evento na trilha (`ponto_auditoria`, migration `V7`): criação, edição, atribuição e remoção de aplicador, ativação, desativação, reativação e cancelamento. Recusas (`4xx`/`409`) e operações sem efeito (repetir o mesmo aplicador, reenviar o cadastro igual) não geram evento.
+
+- **O que guarda:** o ator (usuário do token), o ponto, a ação, o estado anterior e o novo, o aplicador anterior e o novo (só ids), o conteúdo da mudança em `detalhes` (campos alterados na edição como `campo: antes -> depois`, dados da ativação, quantidade de datas canceladas) e `ocorrido_em` (relógio do servidor). **Nada de CPF, e-mail ou nome de usuário.**
+- **Mesma transação da mudança:** se a gravação da auditoria falhar, a mudança é desfeita (o pedido responde `500` e nada fica gravado). `AuditoriaDePontoService.registrar` exige uma transação em andamento.
+- **Append-only:** a entidade não tem setters, as colunas não são atualizáveis e o repositório não tem `delete`. Chaves compostas `(ponto, tenant)` e `(ator, tenant)` impedem evento entre tenants.
+- **Consulta:** `AuditoriaDePontoService.historico(tenantId, pontoId)`, em ordem cronológica. É **interna** (serviço/repositório): não há endpoint HTTP de histórico no beta.
+
 ## Produto (beta)
 
 - **Esquema** (`V4`): `produto` (`id` gerado pelo servidor, `nome`, `tenant_id`). No beta há **um único produto pré-cadastrado por tenant**, que o aplicador seleciona ao registrar uma aplicação; não há CRUD, lote, estoque nem foto. O `id` é o `produtoId` do contrato v0.

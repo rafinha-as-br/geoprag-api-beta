@@ -2,6 +2,8 @@ package br.com.geoprag.api.ponto.domain;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -241,6 +243,46 @@ public class Ponto {
                 || !numericamenteIguais(dosagemMl, novo.dosagemMl())
                 || !numericamenteIguais(distanciaEntreSubpontosMetros, novo.distanciaEntreSubpontosMetros())
                 || quantidadeDeSubpontos != novo.quantidadeDeSubpontos();
+    }
+
+    /** Campos que o cadastro novo muda, no formato {@code campo: antes -> depois} (para a trilha de auditoria). */
+    public List<String> diferencas(Cadastro novo) {
+        List<String> diferencas = new ArrayList<>();
+        diferenca(diferencas, "nome", nome, novo.nome());
+        diferenca(diferencas, "bairroId", bairro.getId(), novo.bairro().getId());
+        diferenca(diferencas, "endereco", endereco, novo.endereco());
+        diferenca(diferencas, "numeroReferencia", numeroReferencia, novo.numeroReferencia());
+        diferenca(diferencas, "descricaoDoTrecho", descricaoDoTrecho, novo.descricaoDoTrecho());
+        diferencaNumerica(diferencas, "larguraMetros", larguraMetros, novo.larguraMetros());
+        diferencaNumerica(diferencas, "profundidadeMetros", profundidadeMetros, novo.profundidadeMetros());
+        diferencaNumerica(diferencas, "velocidadeMetrosPorSegundo", velocidadeMetrosPorSegundo,
+                novo.velocidadeMetrosPorSegundo());
+        diferencaNumerica(diferencas, "dosagemMl", dosagemMl, novo.dosagemMl());
+        diferencaNumerica(diferencas, "distanciaEntreSubpontosMetros", distanciaEntreSubpontosMetros,
+                novo.distanciaEntreSubpontosMetros());
+        diferenca(diferencas, "quantidadeDeSubpontos", quantidadeDeSubpontos, novo.quantidadeDeSubpontos());
+        diferenca(diferencas, "toleranciaAtrasoDias", toleranciaAtrasoDias, novo.toleranciaAtrasoDias());
+        return diferencas;
+    }
+
+    private static void diferenca(List<String> diferencas, String campo, Object antes, Object depois) {
+        if (!Objects.equals(antes, depois)) {
+            diferencas.add(campo + ": " + texto(antes) + " -> " + texto(depois));
+        }
+    }
+
+    private static void diferencaNumerica(List<String> diferencas, String campo, BigDecimal antes,
+            BigDecimal depois) {
+        if (!numericamenteIguais(antes, depois)) {
+            diferencas.add(campo + ": " + texto(antes) + " -> " + texto(depois));
+        }
+    }
+
+    private static String texto(Object valor) {
+        if (valor == null) {
+            return "(vazio)";
+        }
+        return valor instanceof BigDecimal numero ? numero.toPlainString() : valor.toString();
     }
 
     /** Substitui o cadastro; o aplicador, o estado e o identificador não mudam por aqui. */
