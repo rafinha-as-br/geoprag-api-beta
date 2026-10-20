@@ -75,6 +75,15 @@ public class DataAgendada {
         return true;
     }
 
+    /** Cancela a data se ainda estiver pendente; concluída ou já cancelada permanece como está. */
+    public boolean cancelar() {
+        if (status != StatusDataAgendada.PENDENTE) {
+            return false;
+        }
+        this.status = StatusDataAgendada.CANCELADA;
+        return true;
+    }
+
     public UUID getId() {
         return id;
     }

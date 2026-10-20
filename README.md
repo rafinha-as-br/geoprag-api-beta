@@ -40,6 +40,7 @@ Toda a configuração vem **somente de variáveis de ambiente** (veja `.env.exam
 | `DB_NAME`, `DB_USER`, `DB_PASSWORD` | Banco de dados (no Compose, `DB_URL` é montada a partir delas) |
 | `DB_URL` | URL JDBC. Ao rodar a API fora do Compose, `DB_URL`, `DB_USER` e `DB_PASSWORD` são obrigatórias |
 | `JWT_SECRET`, `JWT_ACCESS_TOKEN_MINUTES` | Autenticação JWT (HS256). `JWT_SECRET` é obrigatório (32+ caracteres, senão a API não sobe); o access token vale 15 minutos por padrão |
+| `APP_FUSO_HORARIO`, `PONTO_MAX_RECORRENCIAS` | Fuso das datas de calendário (padrão `America/Sao_Paulo`) e teto de datas geradas na ativação de um ponto (padrão 365) |
 | `SYNC_MAX_ITENS_POR_LOTE` | Máximo de itens em `POST /sync/aplicacoes` (padrão 500; acima disso a API responde `413`) |
 | `CORS_ALLOWED_ORIGINS` | Origens permitidas (lista separada por vírgula) |
 | `SPRING_PROFILES_ACTIVE` | Perfil do Spring. `local` (padrão do Compose) carrega o seed fictício; sem ele o seed não existe |
@@ -66,6 +67,30 @@ Só `ADMINISTRADOR` e `SUB_ADMINISTRADOR` (outro perfil: `403 ACESSO_NEGADO`); o
 | `GET /api/v1/aplicadores` | Aplicadores do tenant (`id`, `nome`, `status`), em ordem alfabética; filtro opcional `status`. Nunca expõe CPF nem e-mail. |
 
 O `agendamento` é o vigente; sem vigente (ex.: ponto inativo), o mais recente, que guarda o histórico. Os `subpontos` trazem também `conflito` e `motivoConflito` (campos opcionais além do contrato v0, visíveis só a esses perfis). Datas e horas dos registros saem em UTC com offset. Sem paginação (fora do beta).
+
+### Transições de estado do ponto (portal)
+
+Mesmos perfis e tenant da leitura; todas devolvem o `Ponto` atualizado. **O servidor é a autoridade sobre o estado**: operação que o estado não permite retorna `409 OPERACAO_NAO_PERMITIDA` com o motivo em pt-BR no `detail` e não altera nada. Ponto inexistente ou de outro tenant: `404`.
+
+| Endpoint | Efeito |
+|---|---|
+| `POST /api/v1/pontos/{id}/aplicador` (`{ "aplicadorId" }`) | Atribui ou troca o aplicador. |
+| `DELETE /api/v1/pontos/{id}/aplicador` | Remove o aplicador. |
+| `POST /api/v1/pontos/{id}/ativacao` (`{ "dataInicio", "intervaloDias", "quantidadeRecorrencias" }`) | Ativa o ponto e gera as datas (`dataInicio + i × intervaloDias`). |
+
+| Estado | Atribuir / trocar | Remover | Ativar |
+|---|---|---|---|
+| `ENDERECADA` | permitido (vai a `DIRECIONADA`) | 409 | 409 (sem aplicador) |
+| `DIRECIONADA` | permitido (troca; continua `DIRECIONADA`) | permitido (volta a `ENDERECADA`) | permitido (vai a `ATIVA`) |
+| `ATIVA` | 409 (cancele a aplicação antes) | 409 | 409 |
+| `INATIVA` | permitido (troca; continua `INATIVA`) | 409 (mantém o aplicador) | permitido (vai a `ATIVA`) |
+| `DESATIVADO` | 409 | 409 | 409 |
+
+- `estadoAnterior` só muda quando o estado muda (trocar o aplicador não é transição). Repetir o mesmo aplicador é um no-op `200`.
+- **Aplicador:** inexistente, de outro tenant ou que não tem o perfil `APLICADOR` → `400 VALIDACAO_INVALIDA` (campo `aplicadorId`, sem revelar outro tenant); aplicador `DESATIVADO` do próprio tenant → `409`.
+- **Ativação:** `dataInicio` não pode ser anterior a hoje (no fuso `APP_FUSO_HORARIO`, padrão `America/Sao_Paulo`; ainda não há fuso por tenant); `intervaloDias` ≥ 1 sem máximo, desde que as datas não passem do ano 9999; `quantidadeRecorrencias` ≥ 1 e até `PONTO_MAX_RECORRENCIAS` (padrão 365). Em todos os casos inválidos: `400 VALIDACAO_INVALIDA` com `errors[]`.
+- **Um único agendamento vigente por ponto**, garantido pelo serviço: ao reativar um ponto `INATIVA`, o agendamento anterior vira histórico (`vigente = false`) e as datas ainda pendentes dele passam a `CANCELADA`.
+- **Concorrência:** a mutação lê o ponto com `SELECT … FOR UPDATE`; duas ativações simultâneas do mesmo ponto resultam em um `200` e um `409` (testado em PostgreSQL real).
 
 ## Produto (beta)
 

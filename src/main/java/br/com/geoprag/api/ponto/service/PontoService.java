@@ -70,6 +70,11 @@ public class PontoService {
     }
 
     /** Carrega agendamentos, datas e registros dos pontos em lote (poucas consultas, não uma por ponto). */
+    /** Resposta completa de um ponto já carregado (usada depois de uma mutação, na mesma transação). */
+    PontoResponse detalhar(String tenantId, Ponto ponto) {
+        return montar(tenantId, List.of(ponto)).get(0);
+    }
+
     private List<PontoResponse> montar(String tenantId, List<Ponto> lista) {
         if (lista.isEmpty()) {
             return List.of();
@@ -102,14 +107,14 @@ public class PontoService {
                         .thenComparing(Agendamento::getCriadoEm)).orElseThrow());
     }
 
-    private static Optional<UUID> uuid(String texto) {
+    static Optional<UUID> uuid(String texto) {
         if (texto == null || !UUID_CANONICO.matcher(texto.trim()).matches()) {
             return Optional.empty();
         }
         return Optional.of(UUID.fromString(texto.trim()));
     }
 
-    private static ApiException naoEncontrado() {
+    static ApiException naoEncontrado() {
         return new ApiException(ErrorCode.PONTO_NAO_ENCONTRADO, HttpStatus.NOT_FOUND);
     }
 }

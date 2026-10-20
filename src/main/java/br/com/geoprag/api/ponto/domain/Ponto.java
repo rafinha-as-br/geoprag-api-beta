@@ -19,6 +19,7 @@ import jakarta.persistence.Table;
 
 import br.com.geoprag.api.auth.domain.Tenant;
 import br.com.geoprag.api.auth.domain.Usuario;
+import br.com.geoprag.api.common.error.ApiException;
 
 /**
  * Ponto de aplicação. Nunca é excluído, apenas desativado. O cadastro não tem coordenadas: {@code latitude} e
@@ -130,6 +131,71 @@ public class Ponto {
     void aoPersistir() {
         if (criadoEm == null) {
             criadoEm = Instant.now();
+        }
+    }
+
+    /**
+     * Atribui ou troca o aplicador (matriz da RN): {@code ENDERECADA} vai a {@code DIRECIONADA}; {@code DIRECIONADA}
+     * e {@code INATIVA} trocam sem mudar de estado; {@code ATIVA} e {@code DESATIVADO} são recusados (409).
+     */
+    public void atribuirAplicador(Usuario novoAplicador) {
+        switch (estado) {
+            case ENDERECADA -> {
+                this.aplicador = novoAplicador;
+                mudarEstado(EstadoPonto.DIRECIONADA);
+            }
+            case DIRECIONADA, INATIVA -> this.aplicador = novoAplicador;
+            case ATIVA -> throw ApiException.operacaoNaoPermitida(
+                    "Para trocar o aplicador de um ponto ativo, cancele a aplicação antes.");
+            case DESATIVADO -> throw ApiException.operacaoNaoPermitida(
+                    "Ponto desativado não aceita aplicador. Reative o ponto antes.");
+        }
+    }
+
+    /** Remove o aplicador: só {@code DIRECIONADA} (volta a {@code ENDERECADA}); os demais estados são recusados. */
+    public void removerAplicador() {
+        switch (estado) {
+            case DIRECIONADA -> {
+                this.aplicador = null;
+                mudarEstado(EstadoPonto.ENDERECADA);
+            }
+            case ENDERECADA -> throw ApiException.operacaoNaoPermitida("O ponto não tem aplicador para remover.");
+            case ATIVA -> throw ApiException.operacaoNaoPermitida(
+                    "Para remover o aplicador de um ponto ativo, cancele a aplicação antes.");
+            case INATIVA -> throw ApiException.operacaoNaoPermitida(
+                    "O aplicador de um ponto inativo é mantido até um novo agendamento.");
+            case DESATIVADO -> throw ApiException.operacaoNaoPermitida(
+                    "Ponto desativado não aceita alteração de aplicador.");
+        }
+    }
+
+    /** Recusa (409) se o estado atual não permite ativar; não altera nada. */
+    public void verificarPodeAtivar() {
+        switch (estado) {
+            case DIRECIONADA, INATIVA -> {
+                if (aplicador == null) {
+                    throw ApiException.operacaoNaoPermitida("O ponto precisa de um aplicador antes de ser ativado.");
+                }
+            }
+            case ENDERECADA -> throw ApiException.operacaoNaoPermitida(
+                    "O ponto precisa de um aplicador antes de ser ativado.");
+            case ATIVA -> throw ApiException.operacaoNaoPermitida("O ponto já está ativo.");
+            case DESATIVADO -> throw ApiException.operacaoNaoPermitida(
+                    "Ponto desativado não pode ser ativado. Reative o ponto antes.");
+        }
+    }
+
+    /** Ativa o ponto ({@code DIRECIONADA} ou {@code INATIVA} com aplicador); o agendamento é do serviço. */
+    public void ativar() {
+        verificarPodeAtivar();
+        mudarEstado(EstadoPonto.ATIVA);
+    }
+
+    /** {@code estadoAnterior} guarda o estado antes da última transição; troca de aplicador não é transição. */
+    private void mudarEstado(EstadoPonto novo) {
+        if (novo != estado) {
+            this.estadoAnterior = estado;
+            this.estado = novo;
         }
     }
 

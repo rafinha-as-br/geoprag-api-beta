@@ -31,6 +31,8 @@ public enum ErrorCode {
             "Sua sessão expirou. Entre novamente com seu CPF ou e-mail e senha."),
     PONTO_NAO_ENCONTRADO("Ponto não encontrado",
             "O ponto solicitado não foi encontrado."),
+    OPERACAO_NAO_PERMITIDA("Operação não permitida",
+            "O estado atual do ponto não permite esta operação."),
     LOTE_MUITO_GRANDE("Lote muito grande",
             "O lote excede o limite de itens aceito. Reenvie os registros em lotes menores."),
     ACESSO_NEGADO("Acesso negado",
