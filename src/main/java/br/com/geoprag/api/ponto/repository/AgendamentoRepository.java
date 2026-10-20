@@ -1,5 +1,6 @@
 package br.com.geoprag.api.ponto.repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -16,4 +17,7 @@ public interface AgendamentoRepository extends Repository<Agendamento, UUID> {
     Optional<Agendamento> findByTenantIdAndPontoIdAndVigenteTrue(String tenantId, UUID pontoId);
 
     List<Agendamento> findByTenantIdAndPontoIdOrderByDataInicioDesc(String tenantId, UUID pontoId);
+
+    /** Agendamentos (vigente e histórico) de vários pontos de uma vez. */
+    List<Agendamento> findByTenantIdAndPontoIdIn(String tenantId, Collection<UUID> pontoIds);
 }

@@ -53,6 +53,19 @@ Toda a configuração vem **somente de variáveis de ambiente** (veja `.env.exam
 - **Repositórios** (`ponto.repository`) estendem `Repository` (não `JpaRepository`): toda consulta recebe o `tenantId` do token e não há `delete`.
 - **Seed** (`R__20`, mesmos perfis `local` e `test`): 3 bairros e 6 pontos, um por estado mais um segundo ativo (`PA-001` a `PA-006`). O `PA-003` tem datas pendentes antigas, ou seja, **em atraso** (as datas do seed são fixas, não relativas ao dia da execução).
 
+### Endpoints de leitura (portal)
+
+Só `ADMINISTRADOR` e `SUB_ADMINISTRADOR` (outro perfil: `403 ACESSO_NEGADO`); o tenant vem do token.
+
+| Endpoint | O que devolve |
+|---|---|
+| `GET /api/v1/pontos` | Pontos do tenant em ordem de `identificador`, no modelo `Ponto` do contrato v0 (com `agendamento.datas[]` e `subpontos`). Filtros opcionais: `bairro` (nome, sem diferenciar maiúsculas) e `estado`. |
+| `GET /api/v1/pontos/{id}` | Um ponto. Ponto inexistente, de outro tenant ou com id malformado: `404 PONTO_NAO_ENCONTRADO` (nunca 403). |
+| `GET /api/v1/bairros` | Bairros do tenant (`id`, `nome`), em ordem alfabética. |
+| `GET /api/v1/aplicadores` | Aplicadores do tenant (`id`, `nome`, `status`), em ordem alfabética; filtro opcional `status`. Nunca expõe CPF nem e-mail. |
+
+O `agendamento` é o vigente; sem vigente (ex.: ponto inativo), o mais recente, que guarda o histórico. Os `subpontos` trazem também `conflito` e `motivoConflito` (campos opcionais além do contrato v0, visíveis só a esses perfis). Datas e horas dos registros saem em UTC com offset. Sem paginação (fora do beta).
+
 ## Produto (beta)
 
 - **Esquema** (`V4`): `produto` (`id` gerado pelo servidor, `nome`, `tenant_id`). No beta há **um único produto pré-cadastrado por tenant**, que o aplicador seleciona ao registrar uma aplicação; não há CRUD, lote, estoque nem foto. O `id` é o `produtoId` do contrato v0.

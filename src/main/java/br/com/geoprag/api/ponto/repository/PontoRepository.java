@@ -4,7 +4,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.Repository;
+import org.springframework.data.repository.query.Param;
 
 import br.com.geoprag.api.ponto.domain.EstadoPonto;
 import br.com.geoprag.api.ponto.domain.Ponto;
@@ -21,6 +23,11 @@ public interface PontoRepository extends Repository<Ponto, UUID> {
     Optional<Ponto> findByTenantIdAndId(String tenantId, UUID id);
 
     List<Ponto> findByTenantIdOrderByIdentificador(String tenantId);
+
+    /** Pontos do tenant já com bairro e aplicador carregados (para a listagem, sem consulta extra por ponto). */
+    @Query("select p from Ponto p join fetch p.bairro left join fetch p.aplicador "
+            + "where p.tenant.id = :tenantId order by p.identificador")
+    List<Ponto> findByTenantIdComBairroEAplicador(@Param("tenantId") String tenantId);
 
     List<Ponto> findByTenantIdAndEstadoOrderByIdentificador(String tenantId, EstadoPonto estado);
 
