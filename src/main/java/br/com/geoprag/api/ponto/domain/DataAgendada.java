@@ -66,6 +66,15 @@ public class DataAgendada {
         }
     }
 
+    /** Dá baixa na data (recorrência atendida). Só uma data pendente pode ser baixada; devolve se baixou. */
+    public boolean baixar() {
+        if (status != StatusDataAgendada.PENDENTE) {
+            return false;
+        }
+        this.status = StatusDataAgendada.CONCLUIDA;
+        return true;
+    }
+
     public UUID getId() {
         return id;
     }
