@@ -21,7 +21,7 @@ Requisitos: Docker e Docker Compose.
 docker compose up --build
 ```
 
-Isso sobe o PostgreSQL e a API (porta **8080**). Na primeira inicialização o Flyway executa as migrations do esquema (`V1` vazia, `V2` com `tenant` e `usuario`, `V3` com `bairro`, `ponto`, `agendamento` e `data_agendada` `V4` com `produto` e `V5` com `refresh_token`) e, no perfil `local` (padrão do Compose), o seed fictício descrito abaixo.
+Isso sobe o PostgreSQL e a API (porta **8080**). Na primeira inicialização o Flyway executa as migrations do esquema (`V1` vazia, `V2` com `tenant` e `usuario`, `V3` com `bairro`, `ponto`, `agendamento` e `data_agendada`, `V4` com `produto`, `V5` com `refresh_token` e `V6` com `aplicacao` e `subponto`) e, no perfil `local` (padrão do Compose), o seed fictício descrito abaixo.
 
 Para customizar a configuração, copie o exemplo e ajuste (o `.env` é ignorado pelo Git):
 
@@ -58,6 +58,17 @@ Toda a configuração vem **somente de variáveis de ambiente** (veja `.env.exam
 - **Esquema** (`V4`): `produto` (`id` gerado pelo servidor, `nome`, `tenant_id`). No beta há **um único produto pré-cadastrado por tenant**, que o aplicador seleciona ao registrar uma aplicação; não há CRUD, lote, estoque nem foto. O `id` é o `produtoId` do contrato v0.
 - **Seed** (`R__30`, mesmos perfis `local` e `test`, depois do seed de tenant e usuários): o produto fictício `Larvicida (exemplo)` no tenant `gaspar-sc`.
 - O repositório (`produto.repository`) estende `Repository` (não `JpaRepository`): toda consulta recebe o `tenantId` do token. A tabela tem `UNIQUE (id, tenant_id)` para servir de alvo das chaves compostas do registro de aplicação.
+
+## Registro de aplicação (serviço)
+
+O registro de um item (subponto) enviado pelo app é feito pelo `RegistroAplicacaoService` (os endpoints `POST /sync/aplicacoes` e `GET /sync/pull` são das GEOPRAG-201 e 200). Esquema em `V6`: `aplicacao` (agrupa os subpontos, `EM_ANDAMENTO` ou `CONCLUIDA`) e `subponto` (um por item), ambos com `tenant_id` e chaves compostas.
+
+- **Idempotente:** o `id` do subponto é o UUID gerado no app e é a chave primária; reenviar o mesmo `id` devolve `DUPLICADO` e não altera nada.
+- **Append-only:** subpontos nunca são editados nem apagados (sem setters, colunas não atualizáveis e repositório sem `delete`).
+- **Datas:** `realizado_em` é o relógio do aparelho (com offset); `recebido_em` é sempre do servidor. O aplicador e o tenant vêm do token.
+- **Rejeita só o inválido de fato** (`DADOS_INVALIDOS`, `PONTO_INEXISTENTE`, `PRODUTO_INEXISTENTE`), sem gravar nada. Dados inconsistentes incluem data agendada de outro ponto e `aplicacaoId` reutilizado com outro ponto, data, produto ou aplicador.
+- **Conflito é aceito e marcado** com um motivo (`PONTO_REATRIBUIDO`, `PONTO_DESATIVADO`, `PONTO_INATIVO`, `DATA_JA_ATENDIDA`, `DATA_CANCELADA`; vale o primeiro da lista quando há mais de um). O resultado ao app não revela o conflito; a marca fica consultável por ponto (`SubpontoRepository`), para o gestor.
+- **Conclusão:** ao atingir a quantidade de subpontos do ponto, a aplicação é concluída e a data agendada recebe baixa (se nenhuma outra aplicação disputa a mesma data).
 
 ## Usuários, senhas e seed
 
