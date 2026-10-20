@@ -17,5 +17,8 @@ public interface UsuarioRepository extends JpaRepository<Usuario, UUID> {
     /** Somente dígitos (ver {@code Cpf.normalizar}). */
     Optional<Usuario> findByCpf(String cpf);
 
+    /** Busca restrita ao tenant (o do token): usuário de outro tenant nunca é encontrado. */
+    Optional<Usuario> findByIdAndTenantId(UUID id, String tenantId);
+
     List<Usuario> findByTenantIdAndPerfil(String tenantId, Perfil perfil);
 }

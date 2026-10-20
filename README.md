@@ -21,7 +21,7 @@ Requisitos: Docker e Docker Compose.
 docker compose up --build
 ```
 
-Isso sobe o PostgreSQL e a API (porta **8080**). Na primeira inicialização o Flyway executa as migrations do esquema (`V1` vazia, `V2` com `tenant` e `usuario` e `V4` com `produto`) e, no perfil `local` (padrão do Compose), o seed fictício descrito abaixo.
+Isso sobe o PostgreSQL e a API (porta **8080**). Na primeira inicialização o Flyway executa as migrations do esquema (`V1` vazia, `V2` com `tenant` e `usuario`, `V3` com `bairro`, `ponto`, `agendamento` e `data_agendada` e `V4` com `produto`) e, no perfil `local` (padrão do Compose), o seed fictício descrito abaixo.
 
 Para customizar a configuração, copie o exemplo e ajuste (o `.env` é ignorado pelo Git):
 
@@ -29,7 +29,7 @@ Para customizar a configuração, copie o exemplo e ajuste (o `.env` é ignorado
 cp .env.example .env
 ```
 
-Sem `.env`, o Compose usa valores padrão de desenvolvimento local (o banco não é publicado fora da rede do Compose). **Esses padrões servem só para o ambiente local**: em qualquer ambiente compartilhado, defina `DB_PASSWORD`, `JWT_SECRET` e `CORS_ALLOWED_ORIGINS` no `.env`.
+Sem `.env`, o Compose usa valores padrão de desenvolvimento local para o banco (que não é publicado fora da rede do Compose). **Esses padrões servem só para o ambiente local**: em qualquer ambiente compartilhado, defina `DB_PASSWORD` e `CORS_ALLOWED_ORIGINS` no `.env`. **`JWT_SECRET` é obrigatório em qualquer ambiente**: sem um segredo com pelo menos 32 caracteres a API não sobe (o Compose avisa antes de iniciar). Gere um com `openssl rand -base64 48` e coloque no `.env`.
 
 ## Configuração
 
@@ -39,11 +39,19 @@ Toda a configuração vem **somente de variáveis de ambiente** (veja `.env.exam
 |---|---|
 | `DB_NAME`, `DB_USER`, `DB_PASSWORD` | Banco de dados (no Compose, `DB_URL` é montada a partir delas) |
 | `DB_URL` | URL JDBC. Ao rodar a API fora do Compose, `DB_URL`, `DB_USER` e `DB_PASSWORD` são obrigatórias |
-| `JWT_SECRET`, `JWT_ACCESS_TOKEN_MINUTES` | Autenticação (usadas pelas features de login) |
+| `JWT_SECRET`, `JWT_ACCESS_TOKEN_MINUTES` | Autenticação JWT (HS256). `JWT_SECRET` é obrigatório (32+ caracteres, senão a API não sobe); o access token vale 15 minutos por padrão |
 | `CORS_ALLOWED_ORIGINS` | Origens permitidas (lista separada por vírgula) |
 | `SPRING_PROFILES_ACTIVE` | Perfil do Spring. `local` (padrão do Compose) carrega o seed fictício; sem ele o seed não existe |
 
 > O repositório é público: nunca versione `.env`, chaves ou credenciais reais.
+
+## Pontos de aplicação (modelo de dados)
+
+- **Esquema** (`V3`): `bairro`, `ponto`, `agendamento` (recorrência; um ponto reativado ganha um novo e o anterior fica como histórico) e `data_agendada` (`PENDENTE`, `CONCLUIDA` ou `CANCELADA`). Toda tabela tem `tenant_id`, e as chaves entre elas são compostas `(id, tenant_id)`: o banco recusa ponto com aplicador ou bairro de outro tenant.
+- **Estados do ponto:** `ENDERECADA`, `DIRECIONADA`, `ATIVA`, `INATIVA` e `DESATIVADO`; o servidor é a autoridade. Sem aplicador o ponto só pode estar enderecado, inativo ou desativado; direcionado e ativo exigem aplicador (check no banco). Um ponto nunca é excluído, apenas desativado.
+- **Cadastro sem coordenadas:** `latitude` e `longitude` ficam nulas; só a primeira aplicação em campo as define. A tolerância de atraso é por ponto (dias corridos, padrão 4).
+- **Repositórios** (`ponto.repository`) estendem `Repository` (não `JpaRepository`): toda consulta recebe o `tenantId` do token e não há `delete`.
+- **Seed** (`R__20`, mesmos perfis `local` e `test`): 3 bairros e 6 pontos, um por estado mais um segundo ativo (`PA-001` a `PA-006`). O `PA-003` tem datas pendentes antigas, ou seja, **em atraso** (as datas do seed são fixas, não relativas ao dia da execução).
 
 ## Produto (beta)
 
@@ -54,7 +62,7 @@ Toda a configuração vem **somente de variáveis de ambiente** (veja `.env.exam
 ## Usuários, senhas e seed
 
 - **Esquema** (`db/migration`, `V2`): `tenant` (id textual, ex.: `gaspar-sc`) e `usuario` (perfil `ADMINISTRADOR`, `SUB_ADMINISTRADOR` ou `APLICADOR`; status `ATIVO` ou `DESATIVADO`; `nome`, `e-mail`, `cpf`, hash de senha e `tenant_id`). O SQL é portável entre PostgreSQL e H2.
-- **Senha:** só o hash BCrypt é guardado (`spring-security-crypto`; o Spring Security completo entra com o login).
+- **Senha:** só o hash BCrypt é guardado.
 - **CPF:** texto com somente os 11 dígitos, nunca em logs nem em respostas. E-mail e CPF são **únicos globalmente**, porque o login (CPF ou e-mail) não informa o tenant. O e-mail é guardado em minúsculas.
 - **Seed fictício** (`db/seed`, migration repetível e idempotente): tenant `gaspar-sc` e contas de teste com CPFs sabidamente inválidos e e-mails `@example.com`. **Só é carregado nos perfis `local` e `test`** (`application-local.yml` e `application-test.yml` acrescentam `classpath:db/seed` à localização do Flyway); a configuração padrão e qualquer outro ambiente ficam sem ele. Para o Compose subir sem seed, defina `SPRING_PROFILES_ACTIVE=default` no `.env`.
 
@@ -67,6 +75,14 @@ Toda a configuração vem **somente de variáveis de ambiente** (veja `.env.exam
 | Aplicador Exemplo Desativado | `aplicador.desativado@example.com` | `APLICADOR` | `DESATIVADO` |
 
 A senha das contas de seed é `Geoprag@Local2026` (fictícia, **somente para uso local**; nunca a reutilize). Os CPFs de seed são sequências de dígitos repetidos (`111.111.111-11` a `555.555.555-55`).
+
+## Autenticação
+
+- `POST /api/v1/auth/login` (público): corpo `{ "identificador": "<CPF ou e-mail>", "senha": "..." }`; devolve `accessToken` (JWT HS256, 15 minutos), `expiresInSeconds` e `usuario`. O CPF pode ter máscara. Credencial incorreta (inclusive identificador inexistente) retorna `401 CREDENCIAIS_INVALIDAS`; usuário desativado, `403 USUARIO_DESATIVADO`.
+- `GET /api/v1/auth/me`: o usuário do token, para qualquer perfil.
+- O token vai no header `Authorization: Bearer <accessToken>`. O `sub` é o id do usuário e o perfil (`ADMINISTRADOR`, `SUB_ADMINISTRADOR` ou `APLICADOR`) e o `tenantId` viajam no token: **o tenant sempre vem do token, nunca de parâmetro**.
+- Tudo exige autenticação, exceto o login, `GET /actuator/health` e a documentação. Sem token válido: `401 NAO_AUTENTICADO`; perfil sem permissão (`@PreAuthorize`): `403 ACESSO_NEGADO`.
+- Para chamar pelo Swagger UI: faça o login, copie o `accessToken` e use **Authorize**.
 
 ## Saúde, documentação e erros
 
@@ -89,7 +105,7 @@ Os erros seguem a RFC 7807 (`application/problem+json`), com `code` estável e `
 }
 ```
 
-Códigos atuais (`br.com.geoprag.api.common.error.ErrorCode`; não renomear um existente): `REQUISICAO_INVALIDA`, `VALIDACAO_INVALIDA`, `RECURSO_NAO_ENCONTRADO`, `METODO_NAO_PERMITIDO`, `FORMATO_NAO_SUPORTADO` e `ERRO_INTERNO`. Erros inesperados nunca expõem detalhes internos. `errors[]` só aparece em `VALIDACAO_INVALIDA`.
+Códigos atuais (`br.com.geoprag.api.common.error.ErrorCode`; não renomear um existente): `REQUISICAO_INVALIDA`, `VALIDACAO_INVALIDA`, `RECURSO_NAO_ENCONTRADO`, `METODO_NAO_PERMITIDO`, `FORMATO_NAO_SUPORTADO`, `ERRO_INTERNO`, `CREDENCIAIS_INVALIDAS`, `USUARIO_DESATIVADO`, `NAO_AUTENTICADO` e `ACESSO_NEGADO`. Erros inesperados nunca expõem detalhes internos. `errors[]` só aparece em `VALIDACAO_INVALIDA`.
 
 **CORS:** `CORS_ALLOWED_ORIGINS` define as origens permitidas (por exemplo, a do portal Web local: `http://localhost:3000`). Vazio = nenhuma origem externa. O preflight `OPTIONS` é tratado, e não há cookies (autenticação por `Authorization: Bearer`).
 
