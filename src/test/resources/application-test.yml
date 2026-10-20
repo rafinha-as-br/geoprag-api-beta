@@ -10,3 +10,6 @@ spring:
 app:
   cors:
     allowed-origins: http://localhost:3000
+  jwt:
+    # Segredo FICTÍCIO, só para os testes (nunca use fora daqui).
+    secret: segredo-ficticio-apenas-para-testes-0123456789
