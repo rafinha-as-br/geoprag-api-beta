@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 import br.com.geoprag.api.TesteDeIntegracao;
@@ -24,6 +25,7 @@ class SwaggerESaudeTests {
     }
 
     @Test
+    @WithMockUser(roles = "ADMINISTRADOR")
     void apenasASaudeEstaExpostaNoActuator() throws Exception {
         mockMvc.perform(get("/actuator/env"))
                 .andExpect(status().isNotFound());

@@ -20,7 +20,15 @@ public enum ErrorCode {
     FORMATO_NAO_SUPORTADO("Formato não suportado",
             "O formato dos dados enviados não é suportado."),
     ERRO_INTERNO("Erro interno",
-            "Ocorreu um erro inesperado. Tente novamente em instantes.");
+            "Ocorreu um erro inesperado. Tente novamente em instantes."),
+    CREDENCIAIS_INVALIDAS("Credenciais inválidas",
+            "CPF, e-mail ou senha incorretos. Verifique os dados e tente novamente."),
+    USUARIO_DESATIVADO("Usuário desativado",
+            "O acesso deste usuário está desativado. Procure o administrador."),
+    NAO_AUTENTICADO("Não autenticado",
+            "Sessão ausente, inválida ou expirada. Entre novamente."),
+    ACESSO_NEGADO("Acesso negado",
+            "Seu perfil não tem permissão para acessar este recurso.");
 
     private final String title;
     private final String detail;
