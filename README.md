@@ -124,7 +124,7 @@ Toda mudança **efetiva** de um ponto feita pelo administrador gera um evento na
 
 ## Registro de aplicação (serviço)
 
-O registro de um item (subponto) enviado pelo app é feito pelo `RegistroAplicacaoService`; o endpoint `POST /api/v1/sync/aplicacoes` (abaixo) o chama por item, e `GET /sync/pull` é da GEOPRAG-200. Esquema em `V6`: `aplicacao` (agrupa os subpontos, `EM_ANDAMENTO` ou `CONCLUIDA`) e `subponto` (um por item), ambos com `tenant_id` e chaves compostas.
+O registro de um item (subponto) enviado pelo app é feito pelo `RegistroAplicacaoService`; o endpoint `POST /api/v1/sync/aplicacoes` (abaixo) o chama por item, e `GET /sync/pull` (abaixo) devolve o snapshot do aplicador. Esquema em `V6`: `aplicacao` (agrupa os subpontos, `EM_ANDAMENTO` ou `CONCLUIDA`) e `subponto` (um por item), ambos com `tenant_id` e chaves compostas.
 
 - **Idempotente:** o `id` do subponto é o UUID gerado no app e é a chave primária; reenviar o mesmo `id` devolve `DUPLICADO` e não altera nada.
 - **Append-only:** subpontos nunca são editados nem apagados (sem setters, colunas não atualizáveis e repositório sem `delete`).
@@ -142,6 +142,15 @@ Só o perfil `APLICADOR`. O corpo é `{ "dispositivoId": "...", "itens": [ ... ]
 - **Envelope inválido** (`itens` ausente ou vazio, `dispositivoId` em branco, JSON ilegível) → `400`. Item nulo ou incompleto dentro de um lote válido é rejeitado como `DADOS_INVALIDOS`.
 - **Limite:** mais de `SYNC_MAX_ITENS_POR_LOTE` itens (padrão **500**) → `413` com o código `LOTE_MUITO_GRANDE`, sem gravar nada.
 - O aplicador e o tenant vêm do token; o corpo não os informa. A resposta nunca revela conflito.
+
+### Pull (snapshot): `GET /api/v1/sync/pull`
+
+Só o perfil `APLICADOR`. Devolve `{ "pontos": [...], "produtos": [...] }` (snapshot completo do contrato v0; sem `cursor` nem `removidos`, que são do pull incremental, GEOPRAG-205).
+
+- **`pontos`:** os pontos do tenant do token em estado **`ATIVA`** e atribuídos ao aplicador do token, em ordem de `identificador`, no formato `Ponto` (com `agendamento.datas[]` e os `subpontos` já registrados, inclusive os de um aplicador anterior). Ponto reatribuído, cancelado ou desativado deixa de aparecer no pull seguinte; o app trata o ponto ausente como retirado, respeitando a regra de registros pendentes.
+- **O aplicador não vê o conflito:** os `subpontos` do pull não trazem `conflito` nem `motivoConflito` (campos só do portal).
+- **`produtos`:** os produtos do tenant (`id`, `nome`; no beta, um só).
+- Administrador e sub-administrador recebem `403 ACESSO_NEGADO`.
 
 ## Usuários, senhas e seed
 
