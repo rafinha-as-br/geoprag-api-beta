@@ -21,7 +21,7 @@ Requisitos: Docker e Docker Compose.
 docker compose up --build
 ```
 
-Isso sobe o PostgreSQL e a API (porta **8080**). Na primeira inicialização o Flyway executa a migration `V1` (vazia).
+Isso sobe o PostgreSQL e a API (porta **8080**). Na primeira inicialização o Flyway executa as migrations do esquema (`V1` vazia e `V2` com `tenant` e `usuario`) e, no perfil `local` (padrão do Compose), o seed fictício descrito abaixo.
 
 Para customizar a configuração, copie o exemplo e ajuste (o `.env` é ignorado pelo Git):
 
@@ -41,8 +41,26 @@ Toda a configuração vem **somente de variáveis de ambiente** (veja `.env.exam
 | `DB_URL` | URL JDBC. Ao rodar a API fora do Compose, `DB_URL`, `DB_USER` e `DB_PASSWORD` são obrigatórias |
 | `JWT_SECRET`, `JWT_ACCESS_TOKEN_MINUTES` | Autenticação (usadas pelas features de login) |
 | `CORS_ALLOWED_ORIGINS` | Origens permitidas (lista separada por vírgula) |
+| `SPRING_PROFILES_ACTIVE` | Perfil do Spring. `local` (padrão do Compose) carrega o seed fictício; sem ele o seed não existe |
 
 > O repositório é público: nunca versione `.env`, chaves ou credenciais reais.
+
+## Usuários, senhas e seed
+
+- **Esquema** (`db/migration`, `V2`): `tenant` (id textual, ex.: `gaspar-sc`) e `usuario` (perfil `ADMINISTRADOR`, `SUB_ADMINISTRADOR` ou `APLICADOR`; status `ATIVO` ou `DESATIVADO`; `nome`, `e-mail`, `cpf`, hash de senha e `tenant_id`). O SQL é portável entre PostgreSQL e H2.
+- **Senha:** só o hash BCrypt é guardado (`spring-security-crypto`; o Spring Security completo entra com o login).
+- **CPF:** texto com somente os 11 dígitos, nunca em logs nem em respostas. E-mail e CPF são **únicos globalmente**, porque o login (CPF ou e-mail) não informa o tenant. O e-mail é guardado em minúsculas.
+- **Seed fictício** (`db/seed`, migration repetível e idempotente): tenant `gaspar-sc` e contas de teste com CPFs sabidamente inválidos e e-mails `@example.com`. **Só é carregado nos perfis `local` e `test`** (`application-local.yml` e `application-test.yml` acrescentam `classpath:db/seed` à localização do Flyway); a configuração padrão e qualquer outro ambiente ficam sem ele. Para o Compose subir sem seed, defina `SPRING_PROFILES_ACTIVE=default` no `.env`.
+
+| Conta | E-mail | Perfil | Status |
+|---|---|---|---|
+| Administrador Exemplo | `admin@example.com` | `ADMINISTRADOR` | `ATIVO` |
+| Sub Administrador Exemplo | `subadmin@example.com` | `SUB_ADMINISTRADOR` | `ATIVO` |
+| Aplicador Exemplo Um | `aplicador1@example.com` | `APLICADOR` | `ATIVO` |
+| Aplicador Exemplo Dois | `aplicador2@example.com` | `APLICADOR` | `ATIVO` |
+| Aplicador Exemplo Desativado | `aplicador.desativado@example.com` | `APLICADOR` | `DESATIVADO` |
+
+A senha das contas de seed é `Geoprag@Local2026` (fictícia, **somente para uso local**; nunca a reutilize). Os CPFs de seed são sequências de dígitos repetidos (`111.111.111-11` a `555.555.555-55`).
 
 ## Saúde, documentação e erros
 
