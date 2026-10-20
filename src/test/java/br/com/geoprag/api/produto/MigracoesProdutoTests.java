@@ -2,6 +2,8 @@ package br.com.geoprag.api.produto;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.List;
+
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.ClassPathResource;
@@ -63,11 +65,14 @@ class MigracoesProdutoTests {
         JdbcTemplate jdbc = bancoNovo("produto_ordem_do_seed");
         migrar(jdbc, MIGRATIONS, SEED);
 
-        assertThat(jdbc.queryForList("""
+        // Só a ordem relativa: outros seeds (ex.: pontos, R__20) podem existir entre os dois.
+        List<String> repetiveis = jdbc.queryForList("""
                 select "script" from "flyway_schema_history" where "type" = 'SQL' and "version" is null
                 order by "installed_rank"
-                """, String.class))
-                .containsExactly("R__10_seed_tenant_gaspar_e_usuarios_ficticios.sql",
-                        "R__30_seed_produto_ficticio.sql");
+                """, String.class);
+        assertThat(repetiveis).contains("R__10_seed_tenant_gaspar_e_usuarios_ficticios.sql",
+                "R__30_seed_produto_ficticio.sql");
+        assertThat(repetiveis.indexOf("R__10_seed_tenant_gaspar_e_usuarios_ficticios.sql"))
+                .isLessThan(repetiveis.indexOf("R__30_seed_produto_ficticio.sql"));
     }
 }
