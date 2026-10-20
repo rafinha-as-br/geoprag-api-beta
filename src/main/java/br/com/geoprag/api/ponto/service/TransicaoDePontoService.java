@@ -8,10 +8,6 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import br.com.geoprag.api.auth.domain.Perfil;
-import br.com.geoprag.api.auth.domain.StatusUsuario;
-import br.com.geoprag.api.auth.domain.Usuario;
-import br.com.geoprag.api.auth.repository.UsuarioRepository;
 import br.com.geoprag.api.common.error.ApiException;
 import br.com.geoprag.api.ponto.config.PontoProperties;
 import br.com.geoprag.api.ponto.domain.Agendamento;
@@ -23,10 +19,11 @@ import br.com.geoprag.api.ponto.repository.DataAgendadaRepository;
 import br.com.geoprag.api.ponto.repository.PontoRepository;
 
 /**
- * Transições de estado do ponto feitas pelo administrador (atribuir/remover aplicador e ativar). O servidor é a
- * autoridade sobre o estado: a matriz está em {@link Ponto}; aqui ficam o tenant, o bloqueio do ponto
- * ({@code SELECT … FOR UPDATE}, para que duas mutações do mesmo ponto não se atropelem), a validação das entradas
- * e o agendamento. Cada método é uma transação: uma recusa (409/400) não deixa nenhuma alteração.
+ * Transições de estado do ponto feitas pelo administrador (atribuir/remover aplicador, ativar, desativar, reativar
+ * e cancelar). O servidor é a autoridade sobre o estado: a matriz está em {@link Ponto}; aqui ficam o tenant, o
+ * bloqueio do ponto ({@code SELECT … FOR UPDATE}, para que duas mutações do mesmo ponto não se atropelem), a
+ * validação das entradas e o agendamento. Cada método é uma transação: uma recusa (409/400) não deixa nenhuma
+ * alteração.
  */
 @Service
 public class TransicaoDePontoService {
@@ -34,18 +31,18 @@ public class TransicaoDePontoService {
     private static final int ANO_MAXIMO = 9999;
 
     private final PontoRepository pontos;
-    private final UsuarioRepository usuarios;
+    private final AplicadorDoTenant aplicadores;
     private final AgendamentoRepository agendamentos;
     private final DataAgendadaRepository datas;
     private final PontoService leitura;
     private final Clock relogio;
     private final PontoProperties propriedades;
 
-    public TransicaoDePontoService(PontoRepository pontos, UsuarioRepository usuarios,
+    public TransicaoDePontoService(PontoRepository pontos, AplicadorDoTenant aplicadores,
             AgendamentoRepository agendamentos, DataAgendadaRepository datas, PontoService leitura, Clock relogio,
             PontoProperties propriedades) {
         this.pontos = pontos;
-        this.usuarios = usuarios;
+        this.aplicadores = aplicadores;
         this.agendamentos = agendamentos;
         this.datas = datas;
         this.leitura = leitura;
@@ -56,7 +53,7 @@ public class TransicaoDePontoService {
     @Transactional
     public PontoResponse atribuirAplicador(String tenantId, String pontoId, String aplicadorId) {
         Ponto ponto = carregar(tenantId, pontoId);
-        ponto.atribuirAplicador(aplicadorDoTenant(tenantId, aplicadorId));
+        ponto.atribuirAplicador(aplicadores.resolver(tenantId, aplicadorId));
         return leitura.detalhar(tenantId, ponto);
     }
 
@@ -90,24 +87,46 @@ public class TransicaoDePontoService {
         return leitura.detalhar(tenantId, ponto);
     }
 
+    /** Desativa o ponto; as datas pendentes de hoje em diante do agendamento vigente passam a canceladas. */
+    @Transactional
+    public PontoResponse desativar(String tenantId, String pontoId) {
+        Ponto ponto = carregar(tenantId, pontoId);
+        ponto.desativar();
+        agendamentos.findByTenantIdAndPontoIdAndVigenteTrue(tenantId, ponto.getId())
+                .ifPresent(vigente -> cancelarDatasFuturasPendentes(tenantId, vigente));
+        return leitura.detalhar(tenantId, ponto);
+    }
+
+    /** Reativa o ponto desativado, no estado anterior. As datas já canceladas não são restauradas. */
+    @Transactional
+    public PontoResponse reativar(String tenantId, String pontoId) {
+        Ponto ponto = carregar(tenantId, pontoId);
+        ponto.reativar();
+        return leitura.detalhar(tenantId, ponto);
+    }
+
+    /** Cancela a aplicação do ponto ativo: encerra o agendamento vigente e cancela as datas futuras pendentes. */
+    @Transactional
+    public PontoResponse cancelar(String tenantId, String pontoId) {
+        Ponto ponto = carregar(tenantId, pontoId);
+        ponto.cancelar();
+        agendamentos.findByTenantIdAndPontoIdAndVigenteTrue(tenantId, ponto.getId()).ifPresent(vigente -> {
+            cancelarDatasFuturasPendentes(tenantId, vigente);
+            vigente.encerrar();
+        });
+        return leitura.detalhar(tenantId, ponto);
+    }
+
+    private void cancelarDatasFuturasPendentes(String tenantId, Agendamento agendamento) {
+        LocalDate hoje = LocalDate.now(relogio);
+        datas.findByTenantIdAndAgendamentoIdOrderByDataPrevista(tenantId, agendamento.getId()).stream()
+                .filter(d -> !d.getDataPrevista().isBefore(hoje))
+                .forEach(DataAgendada::cancelar);
+    }
+
     private Ponto carregar(String tenantId, String pontoId) {
         UUID id = PontoService.uuid(pontoId).orElseThrow(PontoService::naoEncontrado);
         return pontos.findByTenantIdAndIdParaAtualizar(tenantId, id).orElseThrow(PontoService::naoEncontrado);
-    }
-
-    /**
-     * Inexistente, de outro tenant ou que não é aplicador: {@code 400} (sem revelar outro tenant); aplicador
-     * desativado do próprio tenant: {@code 409}.
-     */
-    private Usuario aplicadorDoTenant(String tenantId, String aplicadorId) {
-        Usuario aplicador = PontoService.uuid(aplicadorId)
-                .flatMap(id -> usuarios.findByIdAndTenantId(id, tenantId))
-                .filter(u -> u.getPerfil() == Perfil.APLICADOR)
-                .orElseThrow(() -> ApiException.validacao("aplicadorId", "Informe um aplicador válido."));
-        if (aplicador.getStatus() == StatusUsuario.DESATIVADO) {
-            throw ApiException.operacaoNaoPermitida("O aplicador está desativado e não pode ser atribuído a um ponto.");
-        }
-        return aplicador;
     }
 
     private void validarAgendamento(LocalDate dataInicio, int intervaloDias, int quantidadeRecorrencias) {

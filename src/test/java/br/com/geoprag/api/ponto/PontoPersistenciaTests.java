@@ -341,7 +341,8 @@ class PontoPersistenciaTests {
                 assertThat(metodo.getName()).as(metodo.toString()).doesNotStartWith("delete")
                         .doesNotStartWith("remove");
                 if (!metodo.getName().equals("save")) {
-                    assertThat(metodo.getName()).as(metodo.toString()).startsWith("findByTenantId");
+                    assertThat(metodo.getName()).as(metodo.toString())
+                            .matches("(find|count)ByTenantId.*");
                     assertThat(Arrays.asList(metodo.getParameterTypes()).get(0)).as(metodo.toString())
                             .isEqualTo(String.class);
                 }

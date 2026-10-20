@@ -2,6 +2,7 @@ package br.com.geoprag.api.ponto.domain;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Objects;
 import java.util.UUID;
 
 import jakarta.persistence.Column;
@@ -189,6 +190,77 @@ public class Ponto {
     public void ativar() {
         verificarPodeAtivar();
         mudarEstado(EstadoPonto.ATIVA);
+    }
+
+    /** Desativa o ponto (remoção lógica): guarda o estado em que estava em {@code estadoAnterior}. */
+    public void desativar() {
+        if (estado == EstadoPonto.DESATIVADO) {
+            throw ApiException.operacaoNaoPermitida("O ponto já está desativado.");
+        }
+        mudarEstado(EstadoPonto.DESATIVADO);
+    }
+
+    /** Reativa um ponto desativado, devolvendo-o ao estado que tinha antes da desativação. */
+    public void reativar() {
+        if (estado != EstadoPonto.DESATIVADO) {
+            throw ApiException.operacaoNaoPermitida("Só é possível reativar um ponto desativado.");
+        }
+        if (estadoAnterior == null || estadoAnterior == EstadoPonto.DESATIVADO) {
+            throw ApiException.operacaoNaoPermitida("Não há estado anterior para restaurar neste ponto.");
+        }
+        if ((estadoAnterior == EstadoPonto.DIRECIONADA || estadoAnterior == EstadoPonto.ATIVA) && aplicador == null) {
+            throw ApiException.operacaoNaoPermitida("O ponto precisa de um aplicador para voltar ao estado anterior.");
+        }
+        mudarEstado(estadoAnterior);
+    }
+
+    /** Cancela a aplicação química do ponto: só {@code ATIVA}, que vai a {@code INATIVA}. */
+    public void cancelar() {
+        if (estado != EstadoPonto.ATIVA) {
+            throw ApiException.operacaoNaoPermitida("Só é possível cancelar a aplicação de um ponto ativo.");
+        }
+        mudarEstado(EstadoPonto.INATIVA);
+    }
+
+    /** Dados de cadastro do ponto (o que o administrador informa ao criar ou editar). */
+    public record Cadastro(String nome, Bairro bairro, String endereco, String numeroReferencia,
+            String descricaoDoTrecho, BigDecimal larguraMetros, BigDecimal profundidadeMetros,
+            BigDecimal velocidadeMetrosPorSegundo, BigDecimal dosagemMl, BigDecimal distanciaEntreSubpontosMetros,
+            int quantidadeDeSubpontos, int toleranciaAtrasoDias) {
+    }
+
+    /** Se o cadastro novo altera algo além de {@code nome} e {@code toleranciaAtrasoDias} (sempre editáveis). */
+    public boolean alteraCadastroCompleto(Cadastro novo) {
+        return !bairro.getId().equals(novo.bairro().getId())
+                || !Objects.equals(endereco, novo.endereco())
+                || !Objects.equals(numeroReferencia, novo.numeroReferencia())
+                || !Objects.equals(descricaoDoTrecho, novo.descricaoDoTrecho())
+                || !numericamenteIguais(larguraMetros, novo.larguraMetros())
+                || !numericamenteIguais(profundidadeMetros, novo.profundidadeMetros())
+                || !numericamenteIguais(velocidadeMetrosPorSegundo, novo.velocidadeMetrosPorSegundo())
+                || !numericamenteIguais(dosagemMl, novo.dosagemMl())
+                || !numericamenteIguais(distanciaEntreSubpontosMetros, novo.distanciaEntreSubpontosMetros())
+                || quantidadeDeSubpontos != novo.quantidadeDeSubpontos();
+    }
+
+    /** Substitui o cadastro; o aplicador, o estado e o identificador não mudam por aqui. */
+    public void aplicarCadastro(Cadastro novo) {
+        this.nome = novo.nome();
+        this.bairro = novo.bairro();
+        this.endereco = novo.endereco();
+        this.numeroReferencia = novo.numeroReferencia();
+        this.descricaoDoTrecho = novo.descricaoDoTrecho();
+        this.larguraMetros = novo.larguraMetros();
+        this.profundidadeMetros = novo.profundidadeMetros();
+        this.velocidadeMetrosPorSegundo = novo.velocidadeMetrosPorSegundo();
+        this.dosagemMl = novo.dosagemMl();
+        this.distanciaEntreSubpontosMetros = novo.distanciaEntreSubpontosMetros();
+        this.quantidadeDeSubpontos = novo.quantidadeDeSubpontos();
+        this.toleranciaAtrasoDias = novo.toleranciaAtrasoDias();
+    }
+
+    private static boolean numericamenteIguais(BigDecimal a, BigDecimal b) {
+        return a == null || b == null ? a == b : a.compareTo(b) == 0;
     }
 
     /** {@code estadoAnterior} guarda o estado antes da última transição; troca de aplicador não é transição. */
