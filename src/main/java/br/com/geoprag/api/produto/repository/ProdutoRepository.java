@@ -1,5 +1,6 @@
 package br.com.geoprag.api.produto.repository;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -19,4 +20,7 @@ public interface ProdutoRepository extends Repository<Produto, UUID> {
     Optional<Produto> findByTenantIdAndId(String tenantId, UUID id);
 
     List<Produto> findByTenantIdOrderByNome(String tenantId);
+
+    /** Produtos criados depois de {@code desde} (pull incremental; no beta o produto não é editado). */
+    List<Produto> findByTenantIdAndCriadoEmGreaterThanOrderByNome(String tenantId, Instant desde);
 }

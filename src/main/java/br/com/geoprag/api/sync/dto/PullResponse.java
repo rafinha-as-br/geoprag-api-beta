@@ -9,10 +9,13 @@ import br.com.geoprag.api.ponto.dto.PontoResponse;
 import br.com.geoprag.api.ponto.dto.PontoResponse.AgendamentoResponse;
 
 /**
- * Resposta de {@code GET /api/v1/sync/pull} (snapshot completo do contrato v0): os pontos atribuídos ao aplicador e os
- * produtos disponíveis. Sem cursor nem {@code removidos} (pull incremental é da GEOPRAG-205).
+ * Resposta de {@code GET /api/v1/sync/pull}: os pontos atribuídos ao aplicador e os produtos disponíveis. Sem
+ * {@code desde} é o snapshot completo do contrato v0 (e {@code removidos} vem vazio); com {@code desde} traz só o que
+ * mudou. {@code cursor} é o instante do servidor para usar como {@code desde} no próximo pull e {@code removidos}
+ * são os ids dos pontos retirados do aplicador (extensão do contrato registrada pela GEOPRAG-215).
  */
-public record PullResponse(List<PontoDoAplicador> pontos, List<ProdutoResponse> produtos) {
+public record PullResponse(List<PontoDoAplicador> pontos, List<ProdutoResponse> produtos, OffsetDateTime cursor,
+        List<String> removidos) {
 
     /**
      * Mesmo formato de {@code Ponto}, mas os subpontos <b>não</b> trazem a marca de conflito: o aplicador não vê o

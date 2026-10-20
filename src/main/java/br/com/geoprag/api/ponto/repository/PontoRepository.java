@@ -1,5 +1,6 @@
 package br.com.geoprag.api.ponto.repository;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -48,6 +49,21 @@ public interface PontoRepository extends Repository<Ponto, UUID> {
             + "order by p.identificador")
     List<Ponto> findByTenantIdAndAplicadorIdAndEstadoComBairro(@Param("tenantId") String tenantId,
             @Param("aplicadorId") UUID aplicadorId, @Param("estado") EstadoPonto estado);
+
+    /**
+     * Pontos do aplicador no estado pedido que mudaram depois de {@code desde}: o próprio ponto, o agendamento, uma
+     * data agendada ou um subponto registrado (pull incremental).
+     */
+    @Query("select distinct p from Ponto p join fetch p.bairro join fetch p.aplicador a "
+            + "where p.tenant.id = :tenantId and a.id = :aplicadorId and p.estado = :estado and ("
+            + "p.atualizadoEm > :desde "
+            + "or exists (select 1 from Agendamento g where g.ponto = p and g.atualizadoEm > :desde) "
+            + "or exists (select 1 from DataAgendada d where d.agendamento.ponto = p and d.atualizadoEm > :desde) "
+            + "or exists (select 1 from Subponto s where s.aplicacao.ponto = p and s.recebidoEm > :desde)) "
+            + "order by p.identificador")
+    List<Ponto> findByTenantIdAndAplicadorIdAndEstadoAlteradosDesde(@Param("tenantId") String tenantId,
+            @Param("aplicadorId") UUID aplicadorId, @Param("estado") EstadoPonto estado,
+            @Param("desde") Instant desde);
 
     List<Ponto> findByTenantIdAndEstadoOrderByIdentificador(String tenantId, EstadoPonto estado);
 

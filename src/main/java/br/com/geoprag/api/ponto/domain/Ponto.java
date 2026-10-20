@@ -18,6 +18,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 
 import br.com.geoprag.api.auth.domain.Tenant;
@@ -108,6 +109,9 @@ public class Ponto {
     @Column(name = "criado_em", nullable = false, updatable = false)
     private Instant criadoEm;
 
+    @Column(name = "atualizado_em", nullable = false)
+    private Instant atualizadoEm;
+
     protected Ponto() {
     }
 
@@ -130,8 +134,15 @@ public class Ponto {
         this.estado = aplicador == null ? EstadoPonto.ENDERECADA : EstadoPonto.DIRECIONADA;
     }
 
+    /** Marca a última alteração (usada pelo pull incremental para saber o que mudou). */
+    @PreUpdate
+    void aoAtualizar() {
+        atualizadoEm = Instant.now();
+    }
+
     @PrePersist
     void aoPersistir() {
+        atualizadoEm = Instant.now();
         if (criadoEm == null) {
             criadoEm = Instant.now();
         }
@@ -393,6 +404,10 @@ public class Ponto {
     /** Nula até a primeira aplicação em campo. */
     public BigDecimal getLongitude() {
         return longitude;
+    }
+
+    public Instant getAtualizadoEm() {
+        return atualizadoEm;
     }
 
     public Instant getCriadoEm() {

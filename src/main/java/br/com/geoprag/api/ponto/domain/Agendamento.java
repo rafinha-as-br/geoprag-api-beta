@@ -13,6 +13,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 
 import br.com.geoprag.api.auth.domain.Tenant;
@@ -54,6 +55,9 @@ public class Agendamento {
     @Column(name = "criado_em", nullable = false, updatable = false)
     private Instant criadoEm;
 
+    @Column(name = "atualizado_em", nullable = false)
+    private Instant atualizadoEm;
+
     protected Agendamento() {
     }
 
@@ -67,8 +71,15 @@ public class Agendamento {
         this.quantidadeRecorrencias = quantidadeRecorrencias;
     }
 
+    /** Marca a última alteração (usada pelo pull incremental para saber o que mudou). */
+    @PreUpdate
+    void aoAtualizar() {
+        atualizadoEm = Instant.now();
+    }
+
     @PrePersist
     void aoPersistir() {
+        atualizadoEm = Instant.now();
         if (criadoEm == null) {
             criadoEm = Instant.now();
         }
@@ -105,6 +116,10 @@ public class Agendamento {
 
     public boolean isVigente() {
         return vigente;
+    }
+
+    public Instant getAtualizadoEm() {
+        return atualizadoEm;
     }
 
     public Instant getCriadoEm() {
