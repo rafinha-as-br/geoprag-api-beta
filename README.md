@@ -21,7 +21,7 @@ Requisitos: Docker e Docker Compose.
 docker compose up --build
 ```
 
-Isso sobe o PostgreSQL e a API (porta **8080**). Na primeira inicialização o Flyway executa as migrations do esquema (`V1` vazia e `V2` com `tenant` e `usuario`) e, no perfil `local` (padrão do Compose), o seed fictício descrito abaixo.
+Isso sobe o PostgreSQL e a API (porta **8080**). Na primeira inicialização o Flyway executa as migrations do esquema (`V1` vazia, `V2` com `tenant` e `usuario` e `V3` com `bairro`, `ponto`, `agendamento` e `data_agendada`) e, no perfil `local` (padrão do Compose), o seed fictício descrito abaixo.
 
 Para customizar a configuração, copie o exemplo e ajuste (o `.env` é ignorado pelo Git):
 
@@ -44,6 +44,14 @@ Toda a configuração vem **somente de variáveis de ambiente** (veja `.env.exam
 | `SPRING_PROFILES_ACTIVE` | Perfil do Spring. `local` (padrão do Compose) carrega o seed fictício; sem ele o seed não existe |
 
 > O repositório é público: nunca versione `.env`, chaves ou credenciais reais.
+
+## Pontos de aplicação (modelo de dados)
+
+- **Esquema** (`V3`): `bairro`, `ponto`, `agendamento` (recorrência; um ponto reativado ganha um novo e o anterior fica como histórico) e `data_agendada` (`PENDENTE`, `CONCLUIDA` ou `CANCELADA`). Toda tabela tem `tenant_id`, e as chaves entre elas são compostas `(id, tenant_id)`: o banco recusa ponto com aplicador ou bairro de outro tenant.
+- **Estados do ponto:** `ENDERECADA`, `DIRECIONADA`, `ATIVA`, `INATIVA` e `DESATIVADO`; o servidor é a autoridade. Sem aplicador o ponto só pode estar enderecado, inativo ou desativado; direcionado e ativo exigem aplicador (check no banco). Um ponto nunca é excluído, apenas desativado.
+- **Cadastro sem coordenadas:** `latitude` e `longitude` ficam nulas; só a primeira aplicação em campo as define. A tolerância de atraso é por ponto (dias corridos, padrão 4).
+- **Repositórios** (`ponto.repository`) estendem `Repository` (não `JpaRepository`): toda consulta recebe o `tenantId` do token e não há `delete`.
+- **Seed** (`R__20`, mesmos perfis `local` e `test`): 3 bairros e 6 pontos, um por estado mais um segundo ativo (`PA-001` a `PA-006`). O `PA-003` tem datas pendentes antigas, ou seja, **em atraso** (as datas do seed são fixas, não relativas ao dia da execução).
 
 ## Usuários, senhas e seed
 
