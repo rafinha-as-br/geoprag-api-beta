@@ -1,5 +1,6 @@
 package br.com.geoprag.api.ponto.repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -16,4 +17,8 @@ public interface DataAgendadaRepository extends Repository<DataAgendada, UUID> {
     Optional<DataAgendada> findByTenantIdAndId(String tenantId, UUID id);
 
     List<DataAgendada> findByTenantIdAndAgendamentoIdOrderByDataPrevista(String tenantId, UUID agendamentoId);
+
+    /** Datas de vários agendamentos de uma vez. */
+    List<DataAgendada> findByTenantIdAndAgendamentoIdInOrderByDataPrevista(String tenantId,
+            Collection<UUID> agendamentoIds);
 }

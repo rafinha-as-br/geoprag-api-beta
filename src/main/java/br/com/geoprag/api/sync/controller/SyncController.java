@@ -1,7 +1,5 @@
 package br.com.geoprag.api.sync.controller;
 
-import java.util.UUID;
-
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
@@ -14,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import br.com.geoprag.api.auth.security.DadosDoToken;
 import br.com.geoprag.api.sync.dto.LoteDeRegistro;
 import br.com.geoprag.api.sync.dto.RespostaDoLote;
 import br.com.geoprag.api.sync.service.SincronizacaoService;
@@ -35,6 +34,6 @@ public class SyncController {
             + "(CRIADO, DUPLICADO ou REJEITADO); o registro online usa o mesmo envio, com um item")
     @PostMapping("/aplicacoes")
     public RespostaDoLote enviar(@AuthenticationPrincipal Jwt token, @Valid @RequestBody LoteDeRegistro lote) {
-        return service.registrarLote(token.getClaimAsString("tenantId"), UUID.fromString(token.getSubject()), lote);
+        return service.registrarLote(DadosDoToken.tenantId(token), DadosDoToken.usuarioId(token), lote);
     }
 }
