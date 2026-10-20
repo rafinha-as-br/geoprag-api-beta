@@ -27,6 +27,8 @@ public enum ErrorCode {
             "O acesso deste usuário está desativado. Procure o administrador."),
     NAO_AUTENTICADO("Não autenticado",
             "Sessão ausente, inválida ou expirada. Entre novamente."),
+    REFRESH_INVALIDO("Sessão expirada",
+            "Sua sessão expirou. Entre novamente com seu CPF ou e-mail e senha."),
     ACESSO_NEGADO("Acesso negado",
             "Seu perfil não tem permissão para acessar este recurso.");
 
