@@ -21,7 +21,7 @@ Requisitos: Docker e Docker Compose.
 docker compose up --build
 ```
 
-Isso sobe o PostgreSQL e a API (porta **8080**). Na primeira inicialização o Flyway executa as migrations do esquema (`V1` vazia, `V2` com `tenant` e `usuario` e `V3` com `bairro`, `ponto`, `agendamento` e `data_agendada`) e, no perfil `local` (padrão do Compose), o seed fictício descrito abaixo.
+Isso sobe o PostgreSQL e a API (porta **8080**). Na primeira inicialização o Flyway executa as migrations do esquema (`V1` vazia, `V2` com `tenant` e `usuario`, `V3` com `bairro`, `ponto`, `agendamento` e `data_agendada` e `V4` com `produto`) e, no perfil `local` (padrão do Compose), o seed fictício descrito abaixo.
 
 Para customizar a configuração, copie o exemplo e ajuste (o `.env` é ignorado pelo Git):
 
@@ -52,6 +52,12 @@ Toda a configuração vem **somente de variáveis de ambiente** (veja `.env.exam
 - **Cadastro sem coordenadas:** `latitude` e `longitude` ficam nulas; só a primeira aplicação em campo as define. A tolerância de atraso é por ponto (dias corridos, padrão 4).
 - **Repositórios** (`ponto.repository`) estendem `Repository` (não `JpaRepository`): toda consulta recebe o `tenantId` do token e não há `delete`.
 - **Seed** (`R__20`, mesmos perfis `local` e `test`): 3 bairros e 6 pontos, um por estado mais um segundo ativo (`PA-001` a `PA-006`). O `PA-003` tem datas pendentes antigas, ou seja, **em atraso** (as datas do seed são fixas, não relativas ao dia da execução).
+
+## Produto (beta)
+
+- **Esquema** (`V4`): `produto` (`id` gerado pelo servidor, `nome`, `tenant_id`). No beta há **um único produto pré-cadastrado por tenant**, que o aplicador seleciona ao registrar uma aplicação; não há CRUD, lote, estoque nem foto. O `id` é o `produtoId` do contrato v0.
+- **Seed** (`R__30`, mesmos perfis `local` e `test`, depois do seed de tenant e usuários): o produto fictício `Larvicida (exemplo)` no tenant `gaspar-sc`.
+- O repositório (`produto.repository`) estende `Repository` (não `JpaRepository`): toda consulta recebe o `tenantId` do token. A tabela tem `UNIQUE (id, tenant_id)` para servir de alvo das chaves compostas do registro de aplicação.
 
 ## Usuários, senhas e seed
 
