@@ -70,6 +70,11 @@ public class PontoService {
     }
 
     /** Carrega agendamentos, datas e registros dos pontos em lote (poucas consultas, não uma por ponto). */
+    /** Resposta completa de vários pontos já carregados (carga em lote, sem consulta por ponto). */
+    public List<PontoResponse> detalhar(String tenantId, List<Ponto> pontos) {
+        return montar(tenantId, pontos);
+    }
+
     /** Resposta completa de um ponto já carregado (usada depois de uma mutação, na mesma transação). */
     PontoResponse detalhar(String tenantId, Ponto ponto) {
         return montar(tenantId, List.of(ponto)).get(0);

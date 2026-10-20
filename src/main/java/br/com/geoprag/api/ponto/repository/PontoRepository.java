@@ -40,6 +40,13 @@ public interface PontoRepository extends Repository<Ponto, UUID> {
             + "where p.tenant.id = :tenantId order by p.identificador")
     List<Ponto> findByTenantIdComBairroEAplicador(@Param("tenantId") String tenantId);
 
+    /** Pontos do aplicador no estado pedido, já com bairro e aplicador carregados (pull do app). */
+    @Query("select p from Ponto p join fetch p.bairro join fetch p.aplicador a "
+            + "where p.tenant.id = :tenantId and a.id = :aplicadorId and p.estado = :estado "
+            + "order by p.identificador")
+    List<Ponto> findByTenantIdAndAplicadorIdAndEstadoComBairro(@Param("tenantId") String tenantId,
+            @Param("aplicadorId") UUID aplicadorId, @Param("estado") EstadoPonto estado);
+
     List<Ponto> findByTenantIdAndEstadoOrderByIdentificador(String tenantId, EstadoPonto estado);
 
     List<Ponto> findByTenantIdAndAplicadorIdOrderByIdentificador(String tenantId, UUID aplicadorId);
