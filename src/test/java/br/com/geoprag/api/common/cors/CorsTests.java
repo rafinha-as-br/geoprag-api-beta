@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 import br.com.geoprag.api.TesteDeIntegracao;
@@ -47,6 +48,7 @@ class CorsTests {
     }
 
     @Test
+    @WithMockUser(roles = "ADMINISTRADOR")
     void requisicaoDeOrigemPermitidaRecebeOCabecalhoDeOrigem() throws Exception {
         mockMvc.perform(post("/teste/validacao")
                         .header(HttpHeaders.ORIGIN, ORIGEM_PERMITIDA)

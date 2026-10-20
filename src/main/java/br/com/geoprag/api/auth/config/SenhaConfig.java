@@ -5,10 +5,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-/**
- * Codificação de senhas com BCrypt. Usa apenas {@code spring-security-crypto}: o Spring Security completo
- * (filtros, autorização) entra com o login (GEOPRAG-183).
- */
+/** Codificação de senhas com BCrypt. */
 @Configuration
 public class SenhaConfig {
 

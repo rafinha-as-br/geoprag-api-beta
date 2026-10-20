@@ -26,7 +26,8 @@ services:
       DB_URL: jdbc:postgresql://db:5432/${DB_NAME:-geoprag}
       DB_USER: ${DB_USER:-geoprag}
       DB_PASSWORD: ${DB_PASSWORD:-geoprag}
-      JWT_SECRET: ${JWT_SECRET:-}
+      # Obrigatório: a API não sobe sem um segredo forte (veja .env.example).
+      JWT_SECRET: ${JWT_SECRET:?defina JWT_SECRET no .env (segredo aleatorio com 32+ caracteres)}
       JWT_ACCESS_TOKEN_MINUTES: ${JWT_ACCESS_TOKEN_MINUTES:-15}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-}
 
