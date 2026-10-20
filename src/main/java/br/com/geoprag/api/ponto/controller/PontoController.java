@@ -64,20 +64,22 @@ public class PontoController {
     @PostMapping("/{id}/aplicador")
     public PontoResponse atribuirAplicador(@AuthenticationPrincipal Jwt token, @PathVariable String id,
             @Valid @RequestBody AtribuirAplicadorRequest corpo) {
-        return transicoes.atribuirAplicador(DadosDoToken.tenantId(token), id, corpo.aplicadorId());
+        return transicoes.atribuirAplicador(DadosDoToken.tenantId(token), DadosDoToken.usuarioId(token), id,
+                corpo.aplicadorId());
     }
 
     @Operation(summary = "Remove o aplicador do ponto (só em ponto direcionado; 409 nos demais estados)")
     @DeleteMapping("/{id}/aplicador")
     public PontoResponse removerAplicador(@AuthenticationPrincipal Jwt token, @PathVariable String id) {
-        return transicoes.removerAplicador(DadosDoToken.tenantId(token), id);
+        return transicoes.removerAplicador(DadosDoToken.tenantId(token), DadosDoToken.usuarioId(token), id);
     }
 
     @Operation(summary = "Ativa o ponto e gera as datas do agendamento (409 se o estado não permitir)")
     @PostMapping("/{id}/ativacao")
     public PontoResponse ativar(@AuthenticationPrincipal Jwt token, @PathVariable String id,
             @Valid @RequestBody AtivarPontoRequest corpo) {
-        return transicoes.ativar(DadosDoToken.tenantId(token), id, corpo.dataInicio(), corpo.intervaloDias(),
+        return transicoes.ativar(DadosDoToken.tenantId(token), DadosDoToken.usuarioId(token), id,
+                corpo.dataInicio(), corpo.intervaloDias(),
                 corpo.quantidadeRecorrencias());
     }
 
@@ -85,7 +87,7 @@ public class PontoController {
             + "é gerado pelo servidor")
     @PostMapping
     public PontoResponse criar(@AuthenticationPrincipal Jwt token, @Valid @RequestBody CadastroDePontoRequest corpo) {
-        return cadastro.criar(DadosDoToken.tenantId(token), corpo);
+        return cadastro.criar(DadosDoToken.tenantId(token), DadosDoToken.usuarioId(token), corpo);
     }
 
     @Operation(summary = "Edita o cadastro do ponto (o corpo substitui; aplicadorId é ignorado). Cadastro completo só "
@@ -93,24 +95,24 @@ public class PontoController {
     @PutMapping("/{id}")
     public PontoResponse editar(@AuthenticationPrincipal Jwt token, @PathVariable String id,
             @Valid @RequestBody CadastroDePontoRequest corpo) {
-        return cadastro.editar(DadosDoToken.tenantId(token), id, corpo);
+        return cadastro.editar(DadosDoToken.tenantId(token), DadosDoToken.usuarioId(token), id, corpo);
     }
 
     @Operation(summary = "Desativa o ponto, guardando o estado anterior (409 se já estiver desativado)")
     @PostMapping("/{id}/desativacao")
     public PontoResponse desativar(@AuthenticationPrincipal Jwt token, @PathVariable String id) {
-        return transicoes.desativar(DadosDoToken.tenantId(token), id);
+        return transicoes.desativar(DadosDoToken.tenantId(token), DadosDoToken.usuarioId(token), id);
     }
 
     @Operation(summary = "Reativa um ponto desativado, devolvendo-o ao estado anterior (409 nos demais estados)")
     @PostMapping("/{id}/reativacao")
     public PontoResponse reativar(@AuthenticationPrincipal Jwt token, @PathVariable String id) {
-        return transicoes.reativar(DadosDoToken.tenantId(token), id);
+        return transicoes.reativar(DadosDoToken.tenantId(token), DadosDoToken.usuarioId(token), id);
     }
 
     @Operation(summary = "Cancela a aplicação química de um ponto ativo, que vai a INATIVA (409 nos demais estados)")
     @PostMapping("/{id}/cancelamento")
     public PontoResponse cancelar(@AuthenticationPrincipal Jwt token, @PathVariable String id) {
-        return transicoes.cancelar(DadosDoToken.tenantId(token), id);
+        return transicoes.cancelar(DadosDoToken.tenantId(token), DadosDoToken.usuarioId(token), id);
     }
 }
