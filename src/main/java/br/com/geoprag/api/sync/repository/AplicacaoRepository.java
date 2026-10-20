@@ -16,4 +16,7 @@ public interface AplicacaoRepository extends Repository<Aplicacao, UUID> {
 
     /** Já existe outra aplicação (com outro id) para a mesma data agendada? */
     boolean existsByTenantIdAndDataAgendadaIdAndIdNot(String tenantId, UUID dataAgendadaId, UUID aplicacaoId);
+
+    /** Sem tenant: só para distinguir "id já usado em outro tenant" de "id novo" (a chave primária é global). */
+    boolean existsById(UUID id);
 }

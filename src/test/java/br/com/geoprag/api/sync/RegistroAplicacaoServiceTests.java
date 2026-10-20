@@ -80,6 +80,8 @@ class RegistroAplicacaoServiceTests {
     @Autowired
     private DataAgendadaRepository datas;
     @Autowired
+    private br.com.geoprag.api.ponto.repository.AgendamentoRepository agendamentos;
+    @Autowired
     private ProdutoRepository produtos;
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -514,5 +516,32 @@ class RegistroAplicacaoServiceTests {
         registrar(APLICADOR_3, item(id, UUID.randomUUID()));
 
         assertThat(subponto(id).toString()).doesNotContain("26.9317").doesNotContain("48.9589");
+    }
+
+    @Test
+    void aplicacaoIdJaUsadoEmOutroTenantEhRejeitadoSemEstourarAChavePrimaria() {
+        Tenant outro = tenants.saveAndFlush(new Tenant(OUTRO, "Outro (SC)"));
+        Bairro bairro = bairros.save(new Bairro(outro, "Centro"));
+        Usuario aplicadorOutro = usuarios.save(new Usuario(outro, "Aplicador Outro", "ap.outro3@example.com",
+                "88888888888", Perfil.APLICADOR, passwordEncoder.encode("x")));
+        Ponto pontoOutro = pontos.save(new Ponto(outro, "PA-001", "De outro", bairro, "Rua X", new BigDecimal("10"),
+                new BigDecimal("5"), 3, aplicadorOutro));
+        var agendamentoOutro = agendamentos.save(new br.com.geoprag.api.ponto.domain.Agendamento(outro, pontoOutro,
+                java.time.LocalDate.of(2026, 12, 1), 7, 1));
+        DataAgendada dataOutro = datas.save(new DataAgendada(outro, agendamentoOutro, java.time.LocalDate.of(2026, 12,
+                1)));
+        Produto produtoOutro = produtos.save(new Produto(outro, "Produto de outro"));
+        entityManager.flush();
+        UUID aplicacaoCompartilhada = UUID.randomUUID();
+        ItemDeRegistro doOutroTenant = new ItemDeRegistro(UUID.randomUUID().toString(),
+                aplicacaoCompartilhada.toString(), pontoOutro.getId().toString(), dataOutro.getId().toString(),
+                produtoOutro.getId().toString(), new BigDecimal("1"), new BigDecimal("1"), REALIZADO_EM);
+        assertThat(service.registrar(OUTRO, aplicadorOutro.getId(), doOutroTenant).status())
+                .isEqualTo(StatusItem.CRIADO);
+
+        ResultadoDoItem resultado = registrar(APLICADOR_3, item(UUID.randomUUID(), aplicacaoCompartilhada));
+
+        assertRejeitado(resultado, CodigoRejeicao.DADOS_INVALIDOS);
+        assertThat(contagem("subponto")).isEqualTo(1);
     }
 }
