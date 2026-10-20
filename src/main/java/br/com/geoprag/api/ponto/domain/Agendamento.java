@@ -74,6 +74,11 @@ public class Agendamento {
         }
     }
 
+    /** Encerra o agendamento (fica como histórico); só pode haver um vigente por ponto, garantido pelo serviço. */
+    public void encerrar() {
+        this.vigente = false;
+    }
+
     public UUID getId() {
         return id;
     }

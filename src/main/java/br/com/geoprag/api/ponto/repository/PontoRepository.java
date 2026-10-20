@@ -4,6 +4,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import jakarta.persistence.LockModeType;
+
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.Repository;
 import org.springframework.data.repository.query.Param;
@@ -21,6 +24,14 @@ public interface PontoRepository extends Repository<Ponto, UUID> {
     Ponto save(Ponto ponto);
 
     Optional<Ponto> findByTenantIdAndId(String tenantId, UUID id);
+
+    /**
+     * Carrega o ponto com {@code SELECT … FOR UPDATE}: as mutações de estado do mesmo ponto se serializam e a
+     * checagem da matriz vale até o commit.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select p from Ponto p where p.tenant.id = :tenantId and p.id = :id")
+    Optional<Ponto> findByTenantIdAndIdParaAtualizar(@Param("tenantId") String tenantId, @Param("id") UUID id);
 
     List<Ponto> findByTenantIdOrderByIdentificador(String tenantId);
 

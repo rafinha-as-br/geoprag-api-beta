@@ -72,7 +72,14 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         if (ex.getCode() == ErrorCode.NAO_AUTENTICADO) {
             resposta.header(HttpHeaders.WWW_AUTHENTICATE, "Bearer");
         }
-        return resposta.body(ProblemaPadrao.de(ex.getCode(), ex.getStatus()));
+        ProblemDetail problem = ProblemaPadrao.de(ex.getCode(), ex.getStatus());
+        if (ex.getDetail() != null) {
+            problem.setDetail(ex.getDetail());
+        }
+        if (!ex.getErrors().isEmpty()) {
+            problem.setProperty("errors", ex.getErrors());
+        }
+        return resposta.body(problem);
     }
 
     /** Autorização por papel ({@code @PreAuthorize}) que falha dentro do controller. */
