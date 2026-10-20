@@ -29,6 +29,8 @@ public enum ErrorCode {
             "Sessão ausente, inválida ou expirada. Entre novamente."),
     REFRESH_INVALIDO("Sessão expirada",
             "Sua sessão expirou. Entre novamente com seu CPF ou e-mail e senha."),
+    PONTO_NAO_ENCONTRADO("Ponto não encontrado",
+            "O ponto solicitado não foi encontrado."),
     ACESSO_NEGADO("Acesso negado",
             "Seu perfil não tem permissão para acessar este recurso.");
 
