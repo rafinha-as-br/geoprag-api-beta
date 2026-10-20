@@ -21,7 +21,7 @@ Requisitos: Docker e Docker Compose.
 docker compose up --build
 ```
 
-Isso sobe o PostgreSQL e a API (porta **8080**). Na primeira inicialização o Flyway executa as migrations do esquema (`V1` vazia, `V2` com `tenant` e `usuario`, `V3` com `bairro`, `ponto`, `agendamento` e `data_agendada`, `V4` com `produto` e `V6` com `aplicacao` e `subponto`) e, no perfil `local` (padrão do Compose), o seed fictício descrito abaixo.
+Isso sobe o PostgreSQL e a API (porta **8080**). Na primeira inicialização o Flyway executa as migrations do esquema (`V1` vazia, `V2` com `tenant` e `usuario`, `V3` com `bairro`, `ponto`, `agendamento` e `data_agendada`, `V4` com `produto`, `V5` com `refresh_token` e `V6` com `aplicacao` e `subponto`) e, no perfil `local` (padrão do Compose), o seed fictício descrito abaixo.
 
 Para customizar a configuração, copie o exemplo e ajuste (o `.env` é ignorado pelo Git):
 
@@ -90,9 +90,10 @@ A senha das contas de seed é `Geoprag@Local2026` (fictícia, **somente para uso
 ## Autenticação
 
 - `POST /api/v1/auth/login` (público): corpo `{ "identificador": "<CPF ou e-mail>", "senha": "..." }`; devolve `accessToken` (JWT HS256, 15 minutos), `expiresInSeconds` e `usuario`. O CPF pode ter máscara. Credencial incorreta (inclusive identificador inexistente) retorna `401 CREDENCIAIS_INVALIDAS`; usuário desativado, `403 USUARIO_DESATIVADO`.
+- **Refresh token (só o `APLICADOR`)**: o login do aplicador devolve também `refreshToken`, opaco e válido por **30 dias** (administrador e sub-administrador não recebem). `POST /api/v1/auth/refresh` (público), corpo `{ "refreshToken": "..." }`, devolve um novo par `{ accessToken, refreshToken }` e **invalida o anterior** (rotação). Inválido, expirado, removido, de usuário desativado ou de outro perfil: `401 REFRESH_INVALIDO`; campo ausente: `400 VALIDACAO_INVALIDA`. No banco (`V5`, tabela `refresh_token`) fica só o hash SHA-256; o valor puro nunca é gravado nem logado. Não há revogação no beta: para derrubar uma sessão, apague a linha de `refresh_token`.
 - `GET /api/v1/auth/me`: o usuário do token, para qualquer perfil.
 - O token vai no header `Authorization: Bearer <accessToken>`. O `sub` é o id do usuário e o perfil (`ADMINISTRADOR`, `SUB_ADMINISTRADOR` ou `APLICADOR`) e o `tenantId` viajam no token: **o tenant sempre vem do token, nunca de parâmetro**.
-- Tudo exige autenticação, exceto o login, `GET /actuator/health` e a documentação. Sem token válido: `401 NAO_AUTENTICADO`; perfil sem permissão (`@PreAuthorize`): `403 ACESSO_NEGADO`.
+- Tudo exige autenticação, exceto o login, o refresh, `GET /actuator/health` e a documentação. Sem token válido: `401 NAO_AUTENTICADO`; perfil sem permissão (`@PreAuthorize`): `403 ACESSO_NEGADO`.
 - Para chamar pelo Swagger UI: faça o login, copie o `accessToken` e use **Authorize**.
 
 ## Saúde, documentação e erros

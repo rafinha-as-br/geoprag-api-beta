@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import br.com.geoprag.api.auth.domain.Cpf;
+import br.com.geoprag.api.auth.domain.Perfil;
 import br.com.geoprag.api.auth.domain.Usuario;
 import br.com.geoprag.api.auth.dto.LoginRequest;
 import br.com.geoprag.api.auth.dto.LoginResponse;
@@ -28,17 +29,20 @@ public class AuthService {
     private final UsuarioRepository usuarios;
     private final PasswordEncoder passwordEncoder;
     private final TokenService tokens;
+    private final RefreshTokenService refreshTokens;
     /** Conferido quando o usuário não existe, para o tempo de resposta não revelar se o identificador é válido. */
     private final String hashFicticio;
 
-    public AuthService(UsuarioRepository usuarios, PasswordEncoder passwordEncoder, TokenService tokens) {
+    public AuthService(UsuarioRepository usuarios, PasswordEncoder passwordEncoder, TokenService tokens,
+            RefreshTokenService refreshTokens) {
         this.usuarios = usuarios;
         this.passwordEncoder = passwordEncoder;
         this.tokens = tokens;
+        this.refreshTokens = refreshTokens;
         this.hashFicticio = passwordEncoder.encode(UUID.randomUUID().toString());
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public LoginResponse login(LoginRequest pedido) {
         Optional<Usuario> encontrado = buscarPorIdentificador(pedido.identificador());
         boolean senhaConfere = passwordEncoder.matches(pedido.senha(),
@@ -51,7 +55,8 @@ public class AuthService {
             throw new ApiException(ErrorCode.USUARIO_DESATIVADO, HttpStatus.FORBIDDEN);
         }
         TokenService.TokenEmitido token = tokens.emitir(usuario);
-        return new LoginResponse(token.valor(), token.expiresInSeconds(), UsuarioResponse.de(usuario));
+        String refreshToken = usuario.getPerfil() == Perfil.APLICADOR ? refreshTokens.emitir(usuario) : null;
+        return new LoginResponse(token.valor(), token.expiresInSeconds(), refreshToken, UsuarioResponse.de(usuario));
     }
 
     /**

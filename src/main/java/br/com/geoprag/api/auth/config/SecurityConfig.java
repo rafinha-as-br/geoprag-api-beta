@@ -39,7 +39,7 @@ import br.com.geoprag.api.auth.domain.Perfil;
 
 /**
  * Segurança da API: JWT HS256 no header {@code Authorization: Bearer}, sem sessão e sem cookies (por isso sem CSRF).
- * Tudo exige autenticação, exceto o login, a saúde e a documentação. O perfil do token vira o papel
+ * Tudo exige autenticação, exceto o login, o refresh, a saúde e a documentação. O perfil do token vira o papel
  * ({@code ROLE_ADMINISTRADOR}, {@code ROLE_SUB_ADMINISTRADOR} ou {@code ROLE_APLICADOR}) e o tenant vem do claim
  * {@code tenantId}, nunca de parâmetro da requisição.
  */
@@ -60,7 +60,7 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
                 .sessionManagement(sessao -> sessao.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(regras -> regras
-                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/login").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/login", "/api/v1/auth/refresh").permitAll()
                         .requestMatchers(HttpMethod.GET, "/actuator/health", "/actuator/health/**").permitAll()
                         .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs", "/v3/api-docs/**")
                         .permitAll()
