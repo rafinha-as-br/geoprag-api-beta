@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import br.com.geoprag.api.auth.security.DadosDoToken;
@@ -42,9 +43,10 @@ public class SyncController {
         return service.registrarLote(DadosDoToken.tenantId(token), DadosDoToken.usuarioId(token), lote);
     }
 
-    @Operation(summary = "Baixa o snapshot completo: os pontos ativos atribuídos ao aplicador e os produtos")
+    @Operation(summary = "Baixa os pontos ativos atribuídos ao aplicador e os produtos: snapshot completo, ou só o que "
+            + "mudou desde o instante informado (desde, ISO-8601 com offset), com cursor e removidos")
     @GetMapping("/pull")
-    public PullResponse baixar(@AuthenticationPrincipal Jwt token) {
-        return pull.snapshot(DadosDoToken.tenantId(token), DadosDoToken.usuarioId(token));
+    public PullResponse baixar(@AuthenticationPrincipal Jwt token, @RequestParam(required = false) String desde) {
+        return pull.pull(DadosDoToken.tenantId(token), DadosDoToken.usuarioId(token), desde);
     }
 }

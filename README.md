@@ -41,7 +41,7 @@ Toda a configuração vem **somente de variáveis de ambiente** (veja `.env.exam
 | `DB_URL` | URL JDBC. Ao rodar a API fora do Compose, `DB_URL`, `DB_USER` e `DB_PASSWORD` são obrigatórias |
 | `JWT_SECRET`, `JWT_ACCESS_TOKEN_MINUTES` | Autenticação JWT (HS256). `JWT_SECRET` é obrigatório (32+ caracteres, senão a API não sobe); o access token vale 15 minutos por padrão |
 | `APP_FUSO_HORARIO`, `PONTO_MAX_RECORRENCIAS` | Fuso das datas de calendário (padrão `America/Sao_Paulo`) e teto de datas geradas na ativação de um ponto (padrão 365) |
-| `SYNC_MAX_ITENS_POR_LOTE` | Máximo de itens em `POST /sync/aplicacoes` (padrão 500; acima disso a API responde `413`) |
+| `SYNC_MAX_ITENS_POR_LOTE`, `SYNC_MARGEM_CURSOR_SEGUNDOS` | Máximo de itens em `POST /sync/aplicacoes` (padrão 500; acima disso a API responde `413`) e recuo do `cursor` do pull incremental (padrão 5 s) |
 | `CORS_ALLOWED_ORIGINS` | Origens permitidas (lista separada por vírgula) |
 | `SPRING_PROFILES_ACTIVE` | Perfil do Spring. `local` (padrão do Compose) carrega o seed fictício; sem ele o seed não existe |
 
@@ -143,14 +143,26 @@ Só o perfil `APLICADOR`. O corpo é `{ "dispositivoId": "...", "itens": [ ... ]
 - **Limite:** mais de `SYNC_MAX_ITENS_POR_LOTE` itens (padrão **500**) → `413` com o código `LOTE_MUITO_GRANDE`, sem gravar nada.
 - O aplicador e o tenant vêm do token; o corpo não os informa. A resposta nunca revela conflito.
 
-### Pull (snapshot): `GET /api/v1/sync/pull`
+### Pull: `GET /api/v1/sync/pull` (snapshot e incremental)
 
-Só o perfil `APLICADOR`. Devolve `{ "pontos": [...], "produtos": [...] }` (snapshot completo do contrato v0; sem `cursor` nem `removidos`, que são do pull incremental, GEOPRAG-205).
+Só o perfil `APLICADOR`. Devolve `{ "pontos": [...], "produtos": [...], "cursor": "...", "removidos": [...] }`. Sem `desde` é o **snapshot completo** (o do contrato v0, com `removidos` vazio); com `desde` é o **pull incremental** (extensão registrada pela GEOPRAG-215), descrito abaixo.
 
 - **`pontos`:** os pontos do tenant do token em estado **`ATIVA`** e atribuídos ao aplicador do token, em ordem de `identificador`, no formato `Ponto` (com `agendamento.datas[]` e os `subpontos` já registrados, inclusive os de um aplicador anterior). Ponto reatribuído, cancelado ou desativado deixa de aparecer no pull seguinte; o app trata o ponto ausente como retirado, respeitando a regra de registros pendentes.
 - **O aplicador não vê o conflito:** os `subpontos` do pull não trazem `conflito` nem `motivoConflito` (campos só do portal).
 - **`produtos`:** os produtos do tenant (`id`, `nome`; no beta, um só).
 - Administrador e sub-administrador recebem `403 ACESSO_NEGADO`.
+
+#### Pull incremental (`desde`)
+
+`GET /api/v1/sync/pull?desde=<ISO-8601 com offset>` devolve só o que mudou depois de `desde`; o app usa o `cursor` da resposta anterior (o snapshot também traz `cursor`).
+
+- **`pontos`:** os pontos `ATIVA` do aplicador em que mudou o próprio ponto, o agendamento, uma data agendada ou um subponto registrado depois de `desde` (formato completo do ponto, como no snapshot). Cada alteração feita pela API atualiza `atualizado_em` (migration `V8`) nas entidades.
+- **`produtos`:** só os criados depois de `desde`.
+- **`removidos`:** ids dos pontos que o aplicador tinha como ativos e deixou de ter depois de `desde` (cancelamento, desativação ou reatribuição pelo fluxo normal), lidos da trilha de auditoria (GEOPRAG-197). O ponto que voltou a ser ativo do mesmo aplicador na janela vai em `pontos`, nunca em `removidos`. O app mantém o ponto que tenha registros pendentes de sincronização.
+- **`cursor`:** instante do servidor (fuso `APP_FUSO_HORARIO`) **menos uma margem de segurança** (`SYNC_MARGEM_CURSOR_SEGUNDOS`, 5 s), calculado antes da leitura: uma mudança de uma transação ainda não confirmada na hora do pull volta no próximo, em vez de se perder. O app pode receber de novo um item já visto (o upsert é idempotente).
+- Sem alterações, `pontos`, `produtos` e `removidos` vêm vazios e o `cursor` traz o novo instante. `desde` no futuro devolve vazio; vazio ou ausente é o snapshot.
+- `desde` fora do formato → `400 VALIDACAO_INVALIDA` (campo `desde`). O `+` do offset deve ir codificado na URL (`%2B`); um espaço no lugar do `+` é tolerado.
+- **Limitação:** mudança feita direto no banco (SQL fora da API) não é vista pelo incremental; o snapshot continua sendo o fallback.
 
 ## Usuários, senhas e seed
 

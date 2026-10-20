@@ -90,9 +90,9 @@ class PullTests {
                 .andExpect(jsonPath("$.produtos", hasSize(1)))
                 .andExpect(jsonPath("$.produtos[0].id").value(PRODUTO))
                 .andExpect(jsonPath("$.produtos[0].nome").value("Larvicida (exemplo)"))
-                // snapshot do v0: sem cursor nem removidos (pull incremental é da GEOPRAG-205)
-                .andExpect(jsonPath("$.cursor").doesNotExist())
-                .andExpect(jsonPath("$.removidos").doesNotExist());
+                // snapshot completo: traz o cursor para o app iniciar o incremental (GEOPRAG-205), com removidos vazio
+                .andExpect(jsonPath("$.cursor").isNotEmpty())
+                .andExpect(jsonPath("$.removidos", hasSize(0)));
     }
 
     @Test

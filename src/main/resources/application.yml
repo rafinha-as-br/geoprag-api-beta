@@ -43,6 +43,8 @@ app:
   sync:
     # Máximo de itens por lote em POST /api/v1/sync/aplicacoes (acima disso: 413 LOTE_MUITO_GRANDE).
     max-itens-por-lote: ${SYNC_MAX_ITENS_POR_LOTE:500}
+    # Recuo do cursor do pull incremental (segundos), para não perder mudança de transação ainda não confirmada.
+    margem-cursor-segundos: ${SYNC_MARGEM_CURSOR_SEGUNDOS:5}
   # Fuso de operação (datas de calendário, ex.: "hoje" ao validar a primeira aplicação); ainda não há fuso por tenant.
   fuso-horario: ${APP_FUSO_HORARIO:America/Sao_Paulo}
   ponto:
