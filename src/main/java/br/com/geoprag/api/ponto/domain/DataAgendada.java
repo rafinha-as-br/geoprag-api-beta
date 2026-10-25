@@ -46,6 +46,10 @@ public class DataAgendada {
     @Column(name = "status", length = 20, nullable = false)
     private StatusDataAgendada status;
 
+    /** Quando o administrador removeu o alerta de atraso desta recorrência; nulo se não removeu. */
+    @Column(name = "alerta_removido_em")
+    private Instant alertaRemovidoEm;
+
     @Column(name = "criado_em", nullable = false, updatable = false)
     private Instant criadoEm;
 
@@ -93,6 +97,15 @@ public class DataAgendada {
         }
         this.status = StatusDataAgendada.CANCELADA;
         return true;
+    }
+
+    /** Remove o alerta de atraso desta data; vale só para ela, a próxima recorrência que atrasar alerta de novo. */
+    public void removerAlerta(Instant quando) {
+        this.alertaRemovidoEm = quando;
+    }
+
+    public Instant getAlertaRemovidoEm() {
+        return alertaRemovidoEm;
     }
 
     public UUID getId() {

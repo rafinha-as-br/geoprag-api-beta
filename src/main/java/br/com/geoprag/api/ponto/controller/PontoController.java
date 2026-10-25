@@ -110,6 +110,13 @@ public class PontoController {
         return transicoes.reativar(DadosDoToken.tenantId(token), DadosDoToken.usuarioId(token), id);
     }
 
+    @Operation(summary = "Remove o alerta de atraso do ponto, só do atraso atual (409 se o ponto não estiver em "
+            + "atraso ou o alerta já foi removido)")
+    @PostMapping("/{id}/remocao-de-alerta")
+    public PontoResponse removerAlertaDeAtraso(@AuthenticationPrincipal Jwt token, @PathVariable String id) {
+        return transicoes.removerAlertaDeAtraso(DadosDoToken.tenantId(token), DadosDoToken.usuarioId(token), id);
+    }
+
     @Operation(summary = "Cancela a aplicação química de um ponto ativo, que vai a INATIVA (409 nos demais estados)")
     @PostMapping("/{id}/cancelamento")
     public PontoResponse cancelar(@AuthenticationPrincipal Jwt token, @PathVariable String id) {
