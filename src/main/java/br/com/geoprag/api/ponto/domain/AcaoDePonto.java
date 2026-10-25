@@ -9,5 +9,6 @@ public enum AcaoDePonto {
     ATIVACAO,
     DESATIVACAO,
     REATIVACAO,
-    CANCELAMENTO
+    CANCELAMENTO,
+    REMOCAO_ALERTA_ATRASO
 }

@@ -75,10 +75,16 @@ public record PontoResponse(
         }
     }
 
-    public record DataAgendadaResponse(String id, LocalDate data, StatusDataAgendada status) {
+    /**
+     * {@code alertaRemovidoEm} é <b>extensão</b> sobre o contrato v0 (GEOPRAG-216): quando o administrador removeu o
+     * alerta de atraso desta recorrência (UTC com offset), ou nulo.
+     */
+    public record DataAgendadaResponse(String id, LocalDate data, StatusDataAgendada status,
+            OffsetDateTime alertaRemovidoEm) {
 
         static DataAgendadaResponse de(DataAgendada data) {
-            return new DataAgendadaResponse(data.getId().toString(), data.getDataPrevista(), data.getStatus());
+            return new DataAgendadaResponse(data.getId().toString(), data.getDataPrevista(), data.getStatus(),
+                    data.getAlertaRemovidoEm() == null ? null : data.getAlertaRemovidoEm().atOffset(ZoneOffset.UTC));
         }
     }
 
